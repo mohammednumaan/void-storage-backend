@@ -19,3 +19,10 @@ model User{
   password_hash String @unique
 }
 
+model Session {
+  id String @id
+  sid String @unique
+  data String 
+  expiresAt DateTime
+}
+
