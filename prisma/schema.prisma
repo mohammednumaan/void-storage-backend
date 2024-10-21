@@ -15,9 +15,21 @@ datasource db {
 
 model User{
   id String @id @default(uuid())
-  username String @unique
+  username String @unique 
   password_hash String @unique
+  files File[]
 }
+
+model File{
+  id String @id @default(uuid())
+  fileName String 
+  fileType String
+  fileSize Int
+  createdAt DateTime
+  user User @relation(fields: [userId], references: [id])
+  userId String @unique
+}
+
 
 model Session {
   id String @id

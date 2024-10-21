@@ -2,17 +2,14 @@
 const { body, validationResult } = require("express-validator");
 const { PrismaClient } = require('@prisma/client');
 const asyncHandler = require("express-async-handler");
-const express = require("express");
 const bcrypt = require("bcryptjs");
 const passport = require("passport");
 
-// initialize a router object to handle all user related routes
-const router = express.Router()
 // initialize prisma client to query and modify the database
 const prisma = new PrismaClient();
 
 // a list of middlewares to handle a 'register' post request 
-router.register_post = [
+exports.register_post = [
     body('username').trim().isLength({min: 5}).escape().custom(async value => {
         const user = await prisma.user.findUnique({where: {username: value}});
         if(user) throw new Error('Username Already Exists!');
@@ -56,7 +53,7 @@ router.register_post = [
 ]
 
 // a list of middlewares to handle a 'login' post request
-router.login_post = [
+exports.login_post = [
 
     body('username').trim().isLength({min: 5}).escape(),
     body('password').trim().isLength({min: 8}).escape(),
@@ -83,11 +80,7 @@ router.login_post = [
 ]
 
 // a middleware to handle an 'authenticate' get request
-router.authenticate_get = (req, res, next) => {
-    console.log('yooooo', req.isAuthenticated())
+exports.authenticate_get = (req, res, next) => {
     const authenticated = req.isAuthenticated();
     res.json({authenticated, username: authenticated ? req.user.username : null})
 }
-
-
-module.exports = router;

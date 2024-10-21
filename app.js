@@ -16,6 +16,8 @@ const { PrismaSessionStore } = require('@quixo3/prisma-session-store');
 
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
+var fileSystemRouter = require('./routes/fileSystem');
+
 const { PrismaClient } = require('@prisma/client');
 
 var app = express();
@@ -54,6 +56,7 @@ require('./passport/passport');
 
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
+app.use('/file-system', fileSystemRouter)
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
