@@ -21,17 +21,34 @@ const upload = multer({storage})
 // a list of middlewares to handle a 'file upload' POST request
 exports.file_upload_post = [
     upload.single("file"),
-    asyncHandler(async (req, res, next) => {
-        console.log(req.file)
-        const file = await prisma.file.create({
+    async (req, res, next) => {
+        
+        // get the folder data in which we are going to try storing the uploaded file
+        const folder = await prisma.folder.findFirst({where: {AND: [
+            {userId: req.user.id}, {folderName: 'root'}
+        ]}})
+
+        // get file (if exists) with the same name as the uploaded file
+        const file = await prisma.file.findFirst({where: {fileName: req.file.originalname}})
+        // check if we found a file with the same name. If true, return an error message 
+        // indicating conflict of filenames
+        if (file) return res.status(409).json({error: "File Already Exists!"});
+
+        
+        // Else, create and store the new file data into the folder
+        // we retrieved above
+        const newFile = await prisma.file.create({
             data: {
                 fileName: req.file.originalname,
                 fileType: req.file.mimetype,
                 fileSize: req.file.size,
                 createdAt: new Date(),
-                user: {connect: {id: req.user.id}}
+                folder: {connect: {id: folder.id}}
             }
         })
-        res.json({file})
-    })
+
+        // send a json response to the client indicating 
+        // the file has been uploaded successfully
+        res.json({message: `Uploaded The File Successfully!`})
+    }
 ]   

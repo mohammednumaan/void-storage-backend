@@ -40,10 +40,24 @@ exports.register_post = [
 
         else{
 
-            await prisma.user.create({
+            const user = await prisma.user.create({
                 data: {
                     username: username,
-                    password_hash: hashedPassword
+                    password_hash: hashedPassword,
+                }
+            })
+            await prisma.user.update({
+                where: {
+                    id: user.id
+                },
+                data: {
+                    folders: {
+                        create: {
+                            folderName: 'root',
+                            files: {},
+                            createdAt: new Date(),
+                        }
+                    }
                 }
             })
 
