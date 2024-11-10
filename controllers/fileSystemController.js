@@ -22,6 +22,20 @@ const storage = multer.diskStorage({
 // to handle and store file data
 const upload = multer({storage}) 
 
+// a simple middleware to handle 'folder list' get request
+exports.folder_list_get = asyncHandler(async (req, res, next) => {
+    
+    const {folderId} = req.params;
+    const allFolders = await prisma.folder.findMany({where: {
+        AND: [
+            {parentFolder: {equals: folderId || "root"}},
+            
+            {user: {id: req.user.id}}
+        ]
+    }});
+    return res.json({folders: allFolders});
+})
+
 // a list of middlewares to handle a 'create folder' POST request
 exports.folder_create_post = [
     body("folderName").trim().notEmpty().withMessage("Folder name must not be empty!").escape(),
@@ -40,6 +54,7 @@ exports.folder_create_post = [
 
         // else, first, check if there are any folders are 
         // present with the same name
+        console.log('yooooooo', folderName, parentFolder)
         const folder = await prisma.folder.findFirst({where: {
             AND: [
                 { parentFolder: {equals: parentFolder}}, 
@@ -69,19 +84,28 @@ exports.folder_create_post = [
     })
 ]
 
-// a simple middleware to handle 'folder list' get request
-exports.folder_list_get = asyncHandler(async (req, res, next) => {
+// a simple middleware to handle a 'delete folder' DELETE request
+exports.folder_delete = async (req, res, next) => {
     
-    const allFolders = await prisma.folder.findMany({where: {
-        AND: [
-            {parentFolder: {equals: "root"}},
-            
-            {user: {id: req.user.id}}
-        ]
-    }});
-    return res.json({folders: allFolders});
-})
+    // get the folder we are going to delete
+    const folder = await prisma.folder.findUnique({where: {id: req.body.folderId}});
 
+    // check if the folder if we tried to get exists. if it doesn't
+    // notify the client that the folder doesn't exist
+    if (!folder) return res.status(404).json({error: "Folder Not Found!"});
+
+    // else, we delete the folder from the database
+    await prisma.folder.delete({
+        where: {
+            id: req.body.folderId
+        }
+    })
+
+    // send a json response to the client indicating 
+    // the folder has been deleted successfully
+    res.json({message: "Folder Deleted Successfully!"})
+    
+}
 
 // a list of middlewares to handle a 'file upload' POST request
 exports.file_upload_post = [
@@ -90,11 +114,20 @@ exports.file_upload_post = [
         
         // get the folder data in which we are going to try storing the uploaded file
         const folder = await prisma.folder.findFirst({where: {AND: [
-            {userId: req.user.id}, {folderName: 'root'}
+            {userId: req.user.id}, {folderName: req.body.parentFolder}
         ]}})
 
         // get file (if exists) with the same name as the uploaded file
-        const file = await prisma.file.findFirst({where: {fileName: req.file.originalname}})
+        const file = await prisma.file.findFirst({where: 
+
+            {
+                AND: [
+                    {fileName: {equals: req.file.originalname}},
+                    {folder: {id: folder.id}},
+                ]
+            }
+
+        })
         // check if we found a file with the same name. If true, return an error message 
         // indicating conflict of filenames
         if (file) return res.status(409).json({error: "File Already Exists!"});
