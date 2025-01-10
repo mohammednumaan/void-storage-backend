@@ -3,6 +3,7 @@ const { PrismaClient } = require('@prisma/client');
 const asyncHandler = require("express-async-handler");
 const { body, validationResult } = require('express-validator');
 const multer = require("multer");
+const { connect } = require('../routes/fileSystem');
 
 // initialize prisma client to query and modify the database
 const prisma = new PrismaClient();
@@ -26,9 +27,10 @@ const upload = multer({storage})
 exports.folder_list_get = asyncHandler(async (req, res, next) => {
     
     const {folderId} = req.params;
+    console.log(folderId)
     const allFolders = await prisma.folder.findMany({where: {
         AND: [
-            {parentFolder: {equals: folderId || "root"}},
+            {folderId: {equals: folderId || "f216b5b1-02c2-41bc-8722-e4a8a7fda720"}},
             
             {user: {id: req.user.id}}
         ]
@@ -45,7 +47,7 @@ exports.folder_create_post = [
         const errors = validationResult(req);
 
         // destructring the request's body for easy access
-        const {parentFolder, folderName} = req.body;
+        const {parentFolderId, folderName} = req.body;
 
         // if there are any validatoin errors, notify the client
         if (!errors.isEmpty()){
@@ -54,16 +56,16 @@ exports.folder_create_post = [
 
         // else, first, check if there are any folders are 
         // present with the same name
-        console.log('yooooooo', folderName, parentFolder)
         const folder = await prisma.folder.findFirst({where: {
             AND: [
-                { parentFolder: {equals: parentFolder}}, 
+                { folderId: {equals: parentFolderId}}, 
                 { folderName: {equals: folderName}}, 
                 {user: {id: req.user.id}}
             ]
         }})
 
         // if true, notify the client to use a different folder name
+        console.log(parentFolderId)
         if (folder) return res.status(409).json({error: "Folder Already Exists!"});
 
         // else, we create a new folder and store it in the database
@@ -71,7 +73,7 @@ exports.folder_create_post = [
             const newFolder = await prisma.folder.create({
                 data: {
                     folderName,
-                    parentFolder,
+                    parentFolder: {connect: {id: parentFolderId}},
                     createdAt: new Date(),
                     files: {},
                     user: {connect: {id: req.user.id}}
@@ -79,13 +81,15 @@ exports.folder_create_post = [
             })
 
             // notify the client about the successfull creatiion of the folder
-            return res.json({message: "Folder Created Successfully"});
+            return res.json({message: "Folder Created Successfully", createdFolder: newFolder});
         }
     })
 ]
 
 // a simple middleware to handle a 'delete folder' DELETE request
 exports.folder_delete = async (req, res, next) => {
+
+    console.log(req.body.folderId)
     
     // get the folder we are going to delete
     const folder = await prisma.folder.findUnique({where: {id: req.body.folderId}});
@@ -97,10 +101,14 @@ exports.folder_delete = async (req, res, next) => {
     // else, we delete the folder from the database
     await prisma.folder.delete({
         where: {
-            id: req.body.folderId
+            id: folder.id         
+
+        },
+        include: {
+            files: true
         }
     })
-
+    
     // send a json response to the client indicating 
     // the folder has been deleted successfully
     res.json({message: "Folder Deleted Successfully!"})
@@ -149,4 +157,43 @@ exports.file_upload_post = [
         // the file has been uploaded successfully
         res.json({message: `Uploaded The File Successfully!`})
     }
-]   
+]  
+
+// a simple middleware to handle a 'file' GET request
+exports.file_list_get = asyncHandler(async (req, res, next) => {
+    const {folderId} = req.params;
+    console.log(folderId)
+
+    const folder = await prisma.folder.findFirst({where: {
+        AND: [
+            { folderName: {equals: folderId}}, 
+            {user: {id: req.user.id}}
+        ]
+    }})
+    console.log(folder)
+    const allFiles = await prisma.file.findMany({where: {folderId: {equals: folder.id}},
+        include: {folder: true}
+    });
+    console.log(allFiles)
+    return res.json({files: allFiles});
+})
+
+// a simple middlewre to handle a single 'file' GET request
+exports.file_get = asyncHandler(async (req, res, next) => {
+    const {fileId, folderId} = req.params;
+    const folder = await prisma.folder.findFirst({where: {
+        AND: [
+            { folderName: {equals: folderId}}, 
+            {user: {id: req.user.id}}
+        ]
+    }})
+    console.log(folder)
+    const file = await prisma.file.findFirst({where: {
+        AND: [
+            {fileName: {equals: fileId}},
+            {folderId: {equals: folder.id}},
+        ]
+    }})
+
+    res.json({file})
+})  

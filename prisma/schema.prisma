@@ -23,12 +23,17 @@ model User{
 model Folder{
   id String @id @default(uuid())
   folderName String
-  parentFolder String?
+
+  parentFolder Folder? @relation(name: "parentFolderId", fields: [folderId], references: [id], onDelete: Cascade)
+  folderId String?
+  subFolders Folder[] @relation("parentFolderId")
+
   createdAt DateTime
   files File[]
 
   user User @relation(fields: [userId], references: [id])
   userId String 
+
 }
 
 model File{
@@ -37,7 +42,7 @@ model File{
   fileType String
   fileSize Int
   createdAt DateTime
-  folder Folder @relation(fields: [folderId], references: [id])
+  folder Folder @relation(fields: [folderId], references: [id], onDelete: Cascade)
   folderId String  
 }
 
