@@ -162,7 +162,6 @@ exports.file_upload_post = [
 // a simple middleware to handle a 'file' GET request
 exports.file_list_get = asyncHandler(async (req, res, next) => {
     const {folderId} = req.params;
-    console.log(folderId)
 
     const folder = await prisma.folder.findFirst({where: {
         AND: [
@@ -174,7 +173,6 @@ exports.file_list_get = asyncHandler(async (req, res, next) => {
     const allFiles = await prisma.file.findMany({where: {folderId: {equals: folder.id}},
         include: {folder: true}
     });
-    console.log(allFiles)
     return res.json({files: allFiles});
 })
 
@@ -187,7 +185,6 @@ exports.file_get = asyncHandler(async (req, res, next) => {
             {user: {id: req.user.id}}
         ]
     }})
-    console.log(folder)
     const file = await prisma.file.findFirst({where: {
         AND: [
             {fileName: {equals: fileId}},
