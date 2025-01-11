@@ -90,7 +90,6 @@ exports.folder_create_post = [
         }})
 
         // if true, notify the client to use a different folder name
-        console.log(parentFolderId)
         if (folder) return res.status(409).json({error: "Folder Already Exists!"});
 
         // else, we create a new folder and store it in the database
@@ -145,6 +144,15 @@ exports.file_upload_post = [
     async (req, res, next) => {
         
         // get the folder data in which we are going to try storing the uploaded file
+        if (req.body.parentFolder == 'root'){
+            const rootFolder = await prisma.folder.findFirst({where: {
+                AND: [
+                    {folderName: "root"},
+                    {user: {id: req.user.id}}
+                ]
+            }})
+            req.body.parentFolder = rootFolder.id;
+        }
         const folder = await prisma.folder.findFirst({where: {AND: [
             {userId: req.user.id}, {id: req.body.parentFolder}
         ]}})
