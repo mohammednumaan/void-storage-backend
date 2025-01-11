@@ -26,11 +26,24 @@ const upload = multer({storage})
 // a simple middleware to handle 'folder list' get request
 exports.folder_list_get = asyncHandler(async (req, res, next) => {
     
-    const {folderId} = req.params;
-    console.log(folderId)
+    // contains the folderId requested  
+    let {folderId} = req.params;
+
+    // retrieve the root folder of the current user
+    // if no folderId is specified
+    if (folderId == "root"){
+        const rootFolder = await prisma.folder.findFirst({where: {
+            AND: [
+                {folderName: "root"},
+                {user: {id: req.user.id}}
+            ]
+        }})
+        folderId = rootFolder.id;
+    }
+
     const allFolders = await prisma.folder.findMany({where: {
         AND: [
-            {folderId: {equals: folderId || "f216b5b1-02c2-41bc-8722-e4a8a7fda720"}},
+            {folderId: {equals: folderId}},
             
             {user: {id: req.user.id}}
         ]
@@ -47,11 +60,23 @@ exports.folder_create_post = [
         const errors = validationResult(req);
 
         // destructring the request's body for easy access
-        const {parentFolderId, folderName} = req.body;
+        let {parentFolderId, folderName} = req.body;
 
-        // if there are any validatoin errors, notify the client
+        // if there are any validation errors, notify the client
         if (!errors.isEmpty()){
             return res.status(403).json({errors: errors.array()});
+        }
+
+        // retrieve the root folder of the current user
+        // if no folderId is specified
+        if (parentFolderId == "root"){
+            const rootFolder = await prisma.folder.findFirst({where: {
+                AND: [
+                    {folderName: "root"},
+                    {user: {id: req.user.id}}
+                ]
+            }})
+            parentFolderId = rootFolder.id;
         }
 
         // else, first, check if there are any folders are 
