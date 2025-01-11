@@ -68,7 +68,7 @@ exports.folder_create_post = [
         }
 
         // retrieve the root folder of the current user
-        // if no folderId is specified
+        // if no parentFolderId is specified
         if (parentFolderId == "root"){
             const rootFolder = await prisma.folder.findFirst({where: {
                 AND: [
@@ -114,7 +114,6 @@ exports.folder_create_post = [
 // a simple middleware to handle a 'delete folder' DELETE request
 exports.folder_delete = async (req, res, next) => {
 
-    console.log(req.body.folderId)
     
     // get the folder we are going to delete
     const folder = await prisma.folder.findUnique({where: {id: req.body.folderId}});
@@ -147,7 +146,7 @@ exports.file_upload_post = [
         
         // get the folder data in which we are going to try storing the uploaded file
         const folder = await prisma.folder.findFirst({where: {AND: [
-            {userId: req.user.id}, {folderName: req.body.parentFolder}
+            {userId: req.user.id}, {id: req.body.parentFolder}
         ]}})
 
         // get file (if exists) with the same name as the uploaded file
@@ -186,15 +185,32 @@ exports.file_upload_post = [
 
 // a simple middleware to handle a 'file' GET request
 exports.file_list_get = asyncHandler(async (req, res, next) => {
-    const {folderId} = req.params;
+
+    // contains the folderId that was requested
+    let {folderId} = req.params;
+
+    // retrieve the root folder of the current user
+    // if no folderId is specified
+    console.log("file", folderId)
+    if (folderId == "root"){
+        const rootFolder = await prisma.folder.findFirst({where: {
+            AND: [
+                {folderName: "root"},
+                {user: {id: req.user.id}}
+            ]
+        }})
+        console.log(rootFolder)
+        folderId = rootFolder.id;
+    }
+
 
     const folder = await prisma.folder.findFirst({where: {
         AND: [
-            { folderName: {equals: folderId}}, 
+            {id: {equals: folderId}}, 
             {user: {id: req.user.id}}
         ]
     }})
-    console.log(folder)
+
     const allFiles = await prisma.file.findMany({where: {folderId: {equals: folder.id}},
         include: {folder: true}
     });
@@ -203,16 +219,31 @@ exports.file_list_get = asyncHandler(async (req, res, next) => {
 
 // a simple middlewre to handle a single 'file' GET request
 exports.file_get = asyncHandler(async (req, res, next) => {
-    const {fileId, folderId} = req.params;
+
+    // contains the file and folder id that was requested
+    let {fileId, folderId} = req.params;
+
+    // retrieve the root folder of the current user
+    // if no folderId is specified
+    if (folderId == "root"){
+        const rootFolder = await prisma.folder.findFirst({where: {
+            AND: [
+                {folderName: "root"},
+                {user: {id: req.user.id}}
+            ]
+        }})
+        folderId = rootFolder.id;
+    }
+
     const folder = await prisma.folder.findFirst({where: {
         AND: [
-            { folderName: {equals: folderId}}, 
+            {id: {equals: folderId}}, 
             {user: {id: req.user.id}}
         ]
     }})
     const file = await prisma.file.findFirst({where: {
         AND: [
-            {fileName: {equals: fileId}},
+            {id: {equals: fileId}},
             {folderId: {equals: folder.id}},
         ]
     }})
