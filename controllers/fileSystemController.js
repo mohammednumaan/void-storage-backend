@@ -113,7 +113,6 @@ exports.folder_create_post = [
 // a simple middleware to handle a 'delete folder' DELETE request
 exports.folder_delete = async (req, res, next) => {
 
-    
     // get the folder we are going to delete
     const folder = await prisma.folder.findUnique({where: {id: req.body.folderId}});
 
@@ -187,7 +186,7 @@ exports.file_upload_post = [
 
         // send a json response to the client indicating 
         // the file has been uploaded successfully
-        res.json({message: `Uploaded The File Successfully!`})
+        res.json({message: `Uploaded The File Successfully!`, uploadedFile: newFile})
     }
 ]  
 
@@ -258,3 +257,25 @@ exports.file_get = asyncHandler(async (req, res, next) => {
 
     res.json({file})
 })  
+
+// a simple middleware to handle a 'file delete' DELETE request 
+exports.file_delete = asyncHandler(async (req, res, next) => {
+
+        // get the file we are going to delete
+        const file = await prisma.file.findUnique({where: {id: req.body.fileId}});
+
+        // check if the file if we tried to get exists. if it doesn't
+        // notify the client that the file doesn't exist
+        if (!file) return res.status(404).json({error: "Folder Not Found!"});
+    
+        // else, we delete the folder from the database
+        await prisma.file.delete({
+            where: {
+                id: req.body.fileId         
+    
+            }
+        })
+        // send a json response to the client indicating 
+        // the file has been deleted successfully
+        res.json({message: "File Deleted Successfully!"})
+})

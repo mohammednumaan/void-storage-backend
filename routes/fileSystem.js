@@ -7,6 +7,8 @@ const router = express.Router();
 // defines get requests for accessing specific files
 router.get('/files/:folderId', fileSystemController.file_list_get);
 router.get('/files/file/:folderId/:fileId', fileSystemController.file_get);
+router.delete('/files', fileSystemController.file_delete)
+
 // defined a post request for uploading files
 router.post('/files', fileSystemController.file_upload_post);
 
