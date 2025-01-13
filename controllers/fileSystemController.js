@@ -137,6 +137,28 @@ exports.folder_delete = async (req, res, next) => {
     
 }
 
+// a simple middleware to handle a 'edit folder' PUT request
+exports.folder_edit = [ 
+
+    // validate the input for security reasons
+    body("rename").trim().notEmpty().withMessage("Folder name must not be empty!").escape(),
+
+    // update the folder name
+    asyncHandler(async (req, res, next) => {    
+    await prisma.folder.update({
+        where: {
+            id: req.body.folderId,
+        },
+        data:{
+            folderName: req.body.folderName
+        }
+    })
+
+    // notify the client about the successfull update
+    res.json({message: "Folder Renamed Successfully!"})
+
+})]
+
 // a list of middlewares to handle a 'file upload' POST request
 exports.file_upload_post = [
     upload.single("file"),
@@ -279,3 +301,26 @@ exports.file_delete = asyncHandler(async (req, res, next) => {
         // the file has been deleted successfully
         res.json({message: "File Deleted Successfully!"})
 })
+
+// a simple middleware to handle a 'edit file' PUT request
+exports.file_edit = [ 
+
+    // validate the input for security reasons
+    body("rename").trim().notEmpty().withMessage("File name must not be empty!").escape(),
+
+    // updates the name of the file
+    asyncHandler(async (req, res, next) => {    
+
+        await prisma.file.update({
+            where: {
+                id: req.body.fileId,
+            },
+            data:{
+                fileName: req.body.fileName
+            }
+    })
+
+    // notify the client that the update was successfull
+    res.json({message: "File Renamed Successfully!"})
+
+})]
