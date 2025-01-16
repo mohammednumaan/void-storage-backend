@@ -15,13 +15,13 @@ router.delete('/files', fileSystemController.file_delete)
 router.post('/files', fileSystemController.file_upload_post);
 
 // folder routes to handle getting, deleteting and creating folders
-router.get('/folders', fileSystemController.folder_list_get);
-router.get('/folders/:folderId', fileSystemController.folder_list_get);
+router.get('/folders', FolderInterface.getFolder);
+router.get('/folders/:parentFolderId', FolderInterface.getFolder);
 router.post('/folders', FolderInterface.createFolderPost);
 router.put('/folders', fileSystemController.folder_edit)
 router.put('/folders/move', fileSystemController.folder_move)
 
-router.delete('/folders', fileSystemController.folder_delete)
+router.delete('/folders', FolderInterface.deleteFolder);
 
 // exports
 module.exports = router;

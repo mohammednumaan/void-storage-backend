@@ -11,9 +11,23 @@ const prisma = new PrismaClient();
 // operations such as create, read, update, move, copy, delete operations
 
 class FolderInterface{
+
+    static async #getFolder(req, res, next){
+
+        // extract the parentFolderId from the url in-order to display
+        // retrieve of its sub-folders in the database
+        const {parentFolderId} = req.params;
+        const allSubFolders = await prisma.folder.findMany({where: {
+            AND: [
+                {folderId: parentFolderId},
+                {user: {id: req.user.id}}
+            ]
+        }});
+        res.json({message: "All Folders Retrieved Successfully!", folders: allSubFolders});
+        
+    }
     
     static async #createFolder(req, res, next){
-        console.log("HIII")
         // we first check if there was any validation errors
         const errors = validationResult(req);
         // if there are any validation errors, notify the client
@@ -25,7 +39,6 @@ class FolderInterface{
         // and store the actual file in cloudinary in the right path
         // this path can be determined from the meta-data i stored in the psql database
         const {parentFolderId, newFolderName} = req.body;
-        console.log("parent folder", parentFolderId)
 
         // the first thing to do is to check if a folder with 
         // the same name exists in the database
@@ -68,12 +81,46 @@ class FolderInterface{
         return res.json({message: "Folder Created Successfully!", createdFolder: newFolder});
     } 
 
+
+    static async #deleteFolder(req, res, next){
+        // get the folder we are going to delete
+        const folder = await prisma.folder.findUnique({where: {id: req.body.folderId}});
+
+        // check if the folder if we tried to get exists. if it doesn't
+        // notify the client that the folder doesn't exist
+        if (!folder) return res.status(404).json({error: "Folder Not Found!"});
+
+        // else, we delete the folder from the database
+        await prisma.folder.delete({
+            where: {
+                id: folder.id         
+
+            },
+            include: {
+                files: true
+            }
+        })
+
+        // here, we delete the folder from cloudinary as well
+        const cloudinaryResponse = await CloudinaryInterface.deleteFolderCloudinary(folder.folderPath, folder.folderName, next);        
+        // send a json response to the client indicating 
+        // the folder has been deleted successfully
+        res.json({message: "Folder Deleted Successfully!", deletedFolder: cloudinaryResponse.deleted})
+    }
+
     static createFolderPost(req, res, next){
-        
         return [
             body("folderName").trim().notEmpty().withMessage("Folder name must not be empty!").escape(), 
             asyncHandler(() => FolderInterface.#createFolder(req, res, next))()
         ];
+    }
+
+    static getFolder(req, res, next){
+        return asyncHandler(() => FolderInterface.#getFolder(req, res, next))();
+    }
+
+    static deleteFolder(req, res, next){
+        return asyncHandler(() => FolderInterface.#deleteFolder(req, res, next))();
     }
 }
 

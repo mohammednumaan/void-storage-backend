@@ -21,7 +21,17 @@ class CloudinaryInterface{
             const folder = await cloudinary.api.create_folder(newFolderPath);
             return folder;
         } catch(error){
-            next();
+            next(error);
+        }
+    }
+
+    static async deleteFolderCloudinary(folderPath, folderName, next){
+        try{
+            const folderPathToDelete = `${folderPath}/${folderName}`;
+            const deleteFolder = await cloudinary.api.delete_folder(folderPathToDelete);
+            return deleteFolder;
+        } catch(error){
+            next(error);
         }
     }
 }
