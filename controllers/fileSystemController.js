@@ -159,6 +159,19 @@ exports.folder_edit = [
 
 })]
 
+// a simple function to handle moving folders
+exports.folder_move = (asyncHandler(async (req, res, next) => {
+    const {selectedFolderId, currentFolderId} = req.body;
+    await prisma.folder.update({
+        where: {
+            id: currentFolderId
+        }, 
+        data: {
+            folderId: selectedFolderId
+        }
+    })
+}))
+
 // a list of middlewares to handle a 'file upload' POST request
 exports.file_upload_post = [
     upload.single("file"),
@@ -211,6 +224,7 @@ exports.file_upload_post = [
         res.json({message: `Uploaded The File Successfully!`, uploadedFile: newFile})
     }
 ]  
+
 
 // a simple middleware to handle a 'file' GET request
 exports.file_list_get = asyncHandler(async (req, res, next) => {

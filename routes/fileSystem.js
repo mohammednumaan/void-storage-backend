@@ -18,6 +18,8 @@ router.get('/folders', fileSystemController.folder_list_get);
 router.get('/folders/:folderId', fileSystemController.folder_list_get);
 router.post('/folders', fileSystemController.folder_create_post);
 router.put('/folders', fileSystemController.folder_edit)
+router.put('/folders/move', fileSystemController.folder_move)
+
 router.delete('/folders', fileSystemController.folder_delete)
 
 // exports
