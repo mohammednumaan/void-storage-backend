@@ -27,6 +27,18 @@ class FolderInterface{
         
     }
     
+    static async #getRootFolder(req, res, next){
+
+        // retrieve the root folder for the current user
+        const rootFolder = await prisma.folder.findFirst({where: {
+            AND: [
+                {folderName: 'root'},
+                {user: {id: req.user.id}}
+            ]
+        }});
+        return res.json({message: "Root Folder Retrieved Successfully!", rootFolderId: rootFolder.id});
+    }
+    
     static async #createFolder(req, res, next){
         // we first check if there was any validation errors
         const errors = validationResult(req);
@@ -108,6 +120,34 @@ class FolderInterface{
         res.json({message: "Folder Deleted Successfully!", deletedFolder: cloudinaryResponse.deleted})
     }
 
+    static async #editFolder(req, res, next){
+        // get the folder we are going to rename/edit
+        const folder = await prisma.folder.findUnique({where: {id: req.body.folderId}});
+
+        // check if the folder if we tried to get exists. if it doesn't
+        // notify the client that the folder doesn't exist
+        if (!folder) return res.status(404).json({error: "Folder Not Found!"});
+
+        // we now update/rename the folder name in the database
+        await prisma.folder.update({
+            where: {
+                id: req.body.folderId,
+            },
+            data:{
+                folderName: req.body.newFolderName
+            }
+        })
+
+        
+    }
+    static getFolder(req, res, next){
+        return asyncHandler(() => FolderInterface.#getFolder(req, res, next))();
+    }
+
+    static getRootFolder(req, res, next){
+        return asyncHandler(() => FolderInterface.#getRootFolder(req, res, next))();
+    }
+
     static createFolderPost(req, res, next){
         return [
             body("folderName").trim().notEmpty().withMessage("Folder name must not be empty!").escape(), 
@@ -115,13 +155,11 @@ class FolderInterface{
         ];
     }
 
-    static getFolder(req, res, next){
-        return asyncHandler(() => FolderInterface.#getFolder(req, res, next))();
-    }
 
     static deleteFolder(req, res, next){
         return asyncHandler(() => FolderInterface.#deleteFolder(req, res, next))();
     }
+
 }
 
 

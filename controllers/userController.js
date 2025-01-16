@@ -39,7 +39,7 @@ exports.register_post = [
                 errors: errors.array()
             })
         } 
-
+        
         else{
 
             const user = await prisma.user.create({

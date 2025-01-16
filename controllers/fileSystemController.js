@@ -13,34 +13,7 @@ const prisma = new PrismaClient();
 // to handle and store file data
 const upload = multer({storage}) 
 
-// a simple middleware to handle a 'delete folder' DELETE request
-exports.folder_delete = async (req, res, next) => {
 
-    // extract the folderId to be deleted from the request boy
-    const {folderId} = req.body;
-
-    // retrieve the folder we are going to delete from the database
-    const folder = await prisma.folder.findUnique({where: {id: req.body.folderId}});
-    // check if the folder if we tried to retrieve exists. 
-    // if it doesn't, notify the client that the folder doesn't exist
-    if (!folder) return res.status(404).json({error: "Folder Not Found!"});
-
-    // else, we delete the folder from the database
-    // as well as from cloudinary
-    await prisma.folder.delete({
-        where: {
-            id: folder.id         
-        },
-        include: {
-            files: true
-        }
-    })
-    
-    // send a json response to the client indicating 
-    // the folder has been deleted successfully
-    res.json({message: "Folder Deleted Successfully!"})
-    
-}
 
 // a simple middleware to handle a 'edit folder' PUT request
 exports.folder_edit = [ 
@@ -50,17 +23,18 @@ exports.folder_edit = [
 
     // update the folder name
     asyncHandler(async (req, res, next) => {    
-    await prisma.folder.update({
+        console.log(req.user)
+        await prisma.folder.update({
         where: {
             id: req.body.folderId,
         },
         data:{
             folderName: req.body.folderName
         }
-    })
+        })
 
-    // notify the client about the successfull update
-    res.json({message: "Folder Renamed Successfully!"})
+        // notify the client about the successfull update
+        res.json({message: "Folder Renamed Successfully!"})
 
 })]
 
