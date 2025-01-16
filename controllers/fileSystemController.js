@@ -3,23 +3,13 @@ const { PrismaClient } = require('@prisma/client');
 const asyncHandler = require("express-async-handler");
 const { body, validationResult } = require('express-validator');
 const multer = require("multer");
-const { connect } = require('../routes/fileSystem');
+const { storage }= require("../storage/storage");
+const createFolderCloudinary = require('../storage/storage');
 
 // initialize prisma client to query and modify the database
 const prisma = new PrismaClient();
 
-// configuring multer to handle file uploads (this is temporary)
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-      cb(null, 'files/')
-    },
-    filename: function (req, file, cb) {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9)
-        cb(null, file.fieldname + '-' + uniqueSuffix)
-      }
-})
-
-// initializing a multer object with the above configuration
+// initializing a multer object with the above imported storage configuration
 // to handle and store file data
 const upload = multer({storage}) 
 
@@ -50,65 +40,6 @@ exports.folder_list_get = asyncHandler(async (req, res, next) => {
     }});
     return res.json({folders: allFolders});
 })
-
-// a list of middlewares to handle a 'create folder' POST request
-exports.folder_create_post = [
-    body("folderName").trim().notEmpty().withMessage("Folder name must not be empty!").escape(),
-    asyncHandler(async (req, res, next) => {
-        
-        // retrieve validation errors from the body (if any)
-        const errors = validationResult(req);
-
-        // destructring the request's body for easy access
-        let {parentFolderId, folderName} = req.body;
-
-        // if there are any validation errors, notify the client
-        if (!errors.isEmpty()){
-            return res.status(403).json({errors: errors.array()});
-        }
-
-        // retrieve the root folder of the current user
-        // if no parentFolderId is specified
-        if (parentFolderId == "root"){
-            const rootFolder = await prisma.folder.findFirst({where: {
-                AND: [
-                    {folderName: "root"},
-                    {user: {id: req.user.id}}
-                ]
-            }})
-            parentFolderId = rootFolder.id;
-        }
-
-        // else, first, check if there are any folders are 
-        // present with the same name
-        const folder = await prisma.folder.findFirst({where: {
-            AND: [
-                { folderId: {equals: parentFolderId}}, 
-                { folderName: {equals: folderName}}, 
-                {user: {id: req.user.id}}
-            ]
-        }})
-
-        // if true, notify the client to use a different folder name
-        if (folder) return res.status(409).json({error: "Folder Already Exists!"});
-
-        // else, we create a new folder and store it in the database
-        else{
-            const newFolder = await prisma.folder.create({
-                data: {
-                    folderName,
-                    parentFolder: {connect: {id: parentFolderId}},
-                    createdAt: new Date(),
-                    files: {},
-                    user: {connect: {id: req.user.id}}
-                }
-            })
-
-            // notify the client about the successfull creatiion of the folder
-            return res.json({message: "Folder Created Successfully", createdFolder: newFolder});
-        }
-    })
-]
 
 // a simple middleware to handle a 'delete folder' DELETE request
 exports.folder_delete = async (req, res, next) => {
