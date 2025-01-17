@@ -45,6 +45,7 @@ model File{
   createdAt DateTime
   folder Folder @relation(fields: [folderId], references: [id], onDelete: Cascade)
   folderId String  
+  fileUrl String
 }
 
 

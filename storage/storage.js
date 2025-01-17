@@ -27,11 +27,20 @@ class CloudinaryInterface{
 
     static async deleteFolderCloudinary(folderPath, folderName, next){
         try{
-            const folderPathToDelete = `${folderPath}/${folderName}`;
+            const folderPathToDelete = `${folderPath}/`;
             const deleteFolder = await cloudinary.api.delete_folder(folderPathToDelete);
             return deleteFolder;
         } catch(error){
             next(error);
+        }
+    }
+
+    static async uploadFileCloudinary(folderPath, dataUri,  next){
+        try{                  
+            const uploadedFile = await cloudinary.uploader.upload(dataUri, {folder: folderPath})
+            return uploadedFile;
+        } catch(error){
+            return next(error);
         }
     }
 }
