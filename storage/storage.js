@@ -66,6 +66,15 @@ class CloudinaryInterface{
             return next(error);
         }
     }
+
+    static async deleteFileCloudinary(imagePublicId, next){
+        try{                  
+            const deletedFile = await cloudinary.uploader.destroy(imagePublicId);
+            return deletedFile;
+        } catch(error){
+            return next(error);
+        }
+    }
 }
 
 // exporting the cloudinary class

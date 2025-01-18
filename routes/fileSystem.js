@@ -21,12 +21,12 @@ FILE ROUTES ARE DEFINED BELOW. THESE INCLUDE:
     - Deleting Files Routes
 */
 router.get('/files/:folderId', FileInterface.getFiles);
-router.get('/files/file/:folderId/:fileId', fileSystemController.file_get);
+// router.get('/files/file/:folderId/:fileId', fileSystemController.file_get);
 
 router.post('/files', upload.single("file"), FileInterface.uploadFile);
 router.put('/files', fileSystemController.file_edit);
 
-router.delete('/files', fileSystemController.file_delete)
+router.delete('/files', FileInterface.deleteFile)
 
 /* 
 FOLDER ROUTES ARE DEFINED BELOW. THESE INCLUDE:

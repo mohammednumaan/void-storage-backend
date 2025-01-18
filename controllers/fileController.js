@@ -110,6 +110,32 @@ class FileInterface{
         return res.json({message: "File Uploaded Successfully!", uploadedFile: newFile});
     } 
 
+    static async #deleteFiles(req, res, next){
+        
+        const {fileId} = req.body;
+        
+        // checks if the file exists in the database. if not, we notify the client
+        const file = await prisma.file.findUnique({where: {id: fileId}})
+        if (!file) return res.status(404).json({message: "File Not Found!"});
+
+        // else, we need to delete the asset from cloudinary. To do this
+        // we can extract the public_id from the image URL, this will be then fed
+        // to the delete function to delete the file
+        const publicId = file.fileUrl.split('/').pop().split('.')[0];
+        const cloudinaryResponse = await CloudinaryInterface.deleteFileCloudinary(publicId);
+        if (cloudinaryResponse.result !== 'ok'){
+            return res.status(500).json({message: "Failed To Delete File!"});
+        }
+
+        await prisma.file.delete({
+            where: {
+                id: fileId     
+            }
+        })
+
+        return res.json({message: "File Deleted Successfully!"});
+    }
+
 
     static getFiles(req, res, next){  
         return asyncHandler(() => FileInterface.#getFiles(req, res, next))()
@@ -119,9 +145,9 @@ class FileInterface{
         return asyncHandler(() => FileInterface.#uploadFile(req, res, next))()
     }
 
-    // static deleteFile(req, res, next){
-    //     return asyncHandler(() => FolderInterface.#deleteFolder(req, res, next))();
-    // }
+    static deleteFile(req, res, next){
+        return asyncHandler(() => FileInterface.#deleteFiles(req, res, next))();
+    }
 
     // static editFolder(req, res, next){
     //     return asyncHandler(() => FolderInterface.#editFolder(req, res, next))();
