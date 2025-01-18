@@ -20,7 +20,7 @@ FILE ROUTES ARE DEFINED BELOW. THESE INCLUDE:
     - Editing File Routes
     - Deleting Files Routes
 */
-router.get('/files/:folderId', fileSystemController.file_list_get);
+router.get('/files/:folderId', FileInterface.getFiles);
 router.get('/files/file/:folderId/:fileId', fileSystemController.file_get);
 
 router.post('/files', upload.single("file"), FileInterface.uploadFile);

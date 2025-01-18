@@ -13,9 +13,35 @@ const prisma = new PrismaClient();
 // operations such as create, read, update, move, copy, delete operations
 
 class FileInterface{
+
+    static async #getFiles(req, res, next){
+
+        // extract the file and folder id that was requested
+        let {fileId, folderId} = req.params;
+
+        // first, we check if the folder exists in the database
+        const folderExists = await prisma.folder.findFirst({where: {
+            AND: [
+                {id: {equals: folderId}}, 
+                {user: {id: req.user.id}}
+            ]
+        }})
+
+        // if it doesn't we notify the client
+        if (!folderExists) return res.status(404).json({message: "Folder Does Not Exist!"});
+
+        // else, we fetch all the files uploaded within that folder
+        const allFiles = await prisma.file.findMany({where: {
+            AND: [
+                {id: {equals: fileId}},
+                {folderId: {equals: folderId}},
+            ]
+        }})
+
+        res.json({message: "Files Retrieved Successfully!", allFiles})
+    }
     
     static async #uploadFile(req, res, next){
-        console.log(req.file, "FILELEE")
         // extract the parentFolderId from the request body
         // this is the folderId in which the file is getting uploaded
         const {parentFolderId} = req.body;
@@ -85,7 +111,10 @@ class FileInterface{
     } 
 
 
-    
+    static getFiles(req, res, next){  
+        return asyncHandler(() => FileInterface.#getFiles(req, res, next))()
+    }
+
     static uploadFile(req, res, next){  
         return asyncHandler(() => FileInterface.#uploadFile(req, res, next))()
     }

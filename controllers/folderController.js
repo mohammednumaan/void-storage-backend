@@ -102,6 +102,12 @@ class FolderInterface{
         // notify the client that the folder doesn't exist
         if (!folder) return res.status(404).json({error: "Folder Not Found!"});
 
+        
+        // here, we delete the folder from cloudinary as well
+        const cloudinaryResponse = await CloudinaryInterface.deleteFolderCloudinary(folder.folderPath, folder.folderName, next); 
+        if (!cloudinaryResponse?.deleted || cloudinaryResponse.deleted.length === 0){
+            return res.status(500).json({message: "Failed To Delete Folder!"})
+        }
         // else, we delete the folder from the database
         await prisma.folder.delete({
             where: {
@@ -112,12 +118,9 @@ class FolderInterface{
                 files: true
             }
         })
-
-        // here, we delete the folder from cloudinary as well
-        const cloudinaryResponse = await CloudinaryInterface.deleteFolderCloudinary(folder.folderPath, folder.folderName, next);        
         // send a json response to the client indicating 
         // the folder has been deleted successfully
-        res.json({message: "Folder Deleted Successfully!", deletedFolder: cloudinaryResponse.deleted})
+        return res.status(204).json({message: "Folder Deleted Successfully!", deletedFolder: cloudinaryResponse.deleted})
     }
 
     static async #editFolder(req, res, next){
