@@ -1,10 +1,7 @@
 // imports
 const { PrismaClient } = require('@prisma/client');
-const { body, validationResult } = require('express-validator');
-const CloudinaryInterface = require('../storage/storage');
+const CloudinaryInterface = require('../cloudinary/cloudinary');
 const asyncHandler = require("express-async-handler");
-const multer = require("multer");
-
 
 // initialize prisma client to query and modify the database
 const prisma = new PrismaClient();
@@ -148,10 +145,6 @@ class FileInterface{
     static deleteFile(req, res, next){
         return asyncHandler(() => FileInterface.#deleteFiles(req, res, next))();
     }
-
-    // static editFolder(req, res, next){
-    //     return asyncHandler(() => FolderInterface.#editFolder(req, res, next))();
-    // }
 
 }
 

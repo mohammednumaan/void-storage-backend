@@ -4,8 +4,7 @@ const { PrismaClient } = require('@prisma/client');
 const asyncHandler = require("express-async-handler");
 const bcrypt = require("bcryptjs");
 const passport = require("passport");
-const createFolderCloudinary = require("../storage/storage");
-const CloudinaryInterface = require("../storage/storage");
+const CloudinaryInterface = require("../cloudinary/cloudinary");
 
 // initialize prisma client to query and modify the database
 const prisma = new PrismaClient();

@@ -1,7 +1,7 @@
 // imports
 const { PrismaClient } = require('@prisma/client');
 const { body, validationResult } = require('express-validator');
-const CloudinaryInterface = require('../storage/storage');
+const CloudinaryInterface = require('../cloudinary/cloudinary');
 const asyncHandler = require("express-async-handler");
 
 // initialize prisma client to query and modify the database

@@ -1,5 +1,4 @@
 // imports
-const { CloudinaryStorage } = require('@fluidjs/multer-cloudinary');
 const { v2: cloudinary } = require('cloudinary');
 const dotenv = require('dotenv');
 dotenv.config();

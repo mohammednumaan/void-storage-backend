@@ -1,26 +1,25 @@
-// configuring dotenv to access env variables
-require('dotenv').config()
-
 // imports
-var createError = require('http-errors');
-var express = require('express');
-var path = require('path');
-var cookieParser = require('cookie-parser');
-var logger = require('morgan');
+const createError = require('http-errors');
+const express = require('express');
+const path = require('path');
+const cookieParser = require('cookie-parser');
+const logger = require('morgan');
 const passport = require("passport");
 const cors = require("cors");
-
 
 const expressSession = require('express-session');
 const { PrismaSessionStore } = require('@quixo3/prisma-session-store');
 
-var indexRouter = require('./routes/index');
-var usersRouter = require('./routes/users');
-var fileSystemRouter = require('./routes/fileSystem');
+const indexRouter = require('./routes/index');
+const usersRouter = require('./routes/users');
+const fileSystemRouter = require('./routes/fileSystem');
 
 const { PrismaClient } = require('@prisma/client');
 
-var app = express();
+// configuring dotenv to access env variables
+require('dotenv').config()
+
+const app = express();
 app.use(cors({origin: true, credentials: true}));
 
 // view engine setup
