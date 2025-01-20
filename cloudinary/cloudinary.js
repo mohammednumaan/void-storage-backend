@@ -56,6 +56,25 @@ class CloudinaryInterface{
             return next(error);
         }
     }
+
+    static async moveFileCloudinary(imagePublicId, newAssetFolder, folderName, fileName,   next){
+        try{
+
+            // to move a file from one folder to another, we need to provide 
+            // a new publicId and a new folder path to change the folder as well as the name
+            const newPublicId = `${newAssetFolder}${folderName}/${fileName}`
+            const newFolderPath = `${newAssetFolder}${folderName}/`
+
+            // we can now rename as well as update the folder path of the asset in cloudinary
+            const movedFile = await cloudinary.api.update(imagePublicId, {asset_folder: newFolderPath.substring(1)})
+            const renamedFile = await cloudinary.uploader.rename(imagePublicId, newPublicId.substring(1));
+            
+            // return the updated details
+            return {movedFile, renamedFile};
+        } catch (error){
+            console.log(error)
+        }
+    }
 }
 
 // exporting the cloudinary class

@@ -22,6 +22,8 @@ FILE ROUTES ARE DEFINED BELOW. THESE INCLUDE:
 router.get('/files/:folderId', FileInterface.getFiles);
 router.post('/files', upload.single("file"), FileInterface.uploadFile);
 router.delete('/files', FileInterface.deleteFile)
+router.put('/files/move', FileInterface.moveFile)
+
 // router.put('/files', fileSystemController.file_edit);
 // router.get('/files/file/:folderId/:fileId', fileSystemController.file_get);
 

@@ -133,6 +133,47 @@ class FileInterface{
         return res.json({message: "File Deleted Successfully!"});
     }
 
+    static async #moveFiles(req, res, next){
+
+        // extractint the selected folder and file from the request
+        const {selectedFolderId, fileId} = req.body;
+
+        // check if the given file and folder exists in the database
+        const selectedFolder = await prisma.folder.findUnique({
+            where: {id: selectedFolderId}
+        });
+
+        const selectedFile = await prisma.file.findUnique({
+            where: {id: fileId}
+        })
+
+        // if they don't exist, we notify the client    
+        if (!selectedFolder) return res.status(404).json({message: "Folder Not Found!"});
+        if (!selectedFile) return res.status(404).json({message: "File Not Found!"});
+
+        // here, we need to construct a proper url/id for cloudinary to use
+        // to rename the file we are going to move
+        const fileURL = selectedFile.fileUrl.split('/');
+        const filePublicId = fileURL.pop().split('.')[0];
+        const filePath = fileURL.slice(7, 9).join('/') + '/' +  filePublicId;
+
+        const cloudinaryResponse = await CloudinaryInterface.moveFileCloudinary(filePath, selectedFolder.folderPath, selectedFolder.folderName, filePublicId, next);
+        if (!cloudinaryResponse){
+            return res.status(500).json({message: "An Error Occured!"});
+        }
+
+        // we can finally update the meta-data in psql database 
+        const updatedFile = await prisma.file.update({
+            where: {id: fileId},
+            data: {
+                folder: {connect: {id: selectedFolder.id}},
+                fileUrl: cloudinaryResponse.renamedFile.url
+            }
+        })
+        
+        return res.json({message: "File Moved Successfully!", movedFile: updatedFile})
+    }
+
 
     static getFiles(req, res, next){  
         return asyncHandler(() => FileInterface.#getFiles(req, res, next))()
@@ -144,6 +185,10 @@ class FileInterface{
 
     static deleteFile(req, res, next){
         return asyncHandler(() => FileInterface.#deleteFiles(req, res, next))();
+    }
+
+    static moveFile(req, res, next){
+        return asyncHandler(() => FileInterface.#moveFiles(req, res, next))();
     }
 
 }

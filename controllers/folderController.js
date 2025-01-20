@@ -172,9 +172,8 @@ class FolderInterface{
         //     })
             
         // }
-
-        
     }
+
     static getFolder(req, res, next){
         return asyncHandler(() => FolderInterface.#getFolder(req, res, next))();
     }
