@@ -53,11 +53,11 @@ class CloudinaryInterface{
             const deletedFile = await cloudinary.uploader.destroy(imagePublicId);
             return deletedFile;
         } catch(error){
-            return next(error);
+            console.log(error)
         }
     }
 
-    static async moveFileCloudinary(imagePublicId, newAssetFolder, folderName, fileName,   next){
+    static async moveFileCloudinary(imagePublicId, newAssetFolder, folderName, fileName, next){
         try{
 
             // to move a file from one folder to another, we need to provide 

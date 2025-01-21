@@ -114,12 +114,16 @@ class FileInterface{
         // checks if the file exists in the database. if not, we notify the client
         const file = await prisma.file.findUnique({where: {id: fileId}})
         if (!file) return res.status(404).json({message: "File Not Found!"});
-
+        
         // else, we need to delete the asset from cloudinary. To do this
         // we can extract the public_id from the image URL, this will be then fed
         // to the delete function to delete the file
-        const publicId = file.fileUrl.split('/').pop().split('.')[0];
-        const cloudinaryResponse = await CloudinaryInterface.deleteFileCloudinary(publicId);
+        const publicId = file.fileUrl.split('/');
+        const imageName = publicId.pop().split('.')[0];
+        const finalImageId = publicId.splice(7, 10).join('/') + '/' + imageName;
+        
+        const cloudinaryResponse = await CloudinaryInterface.deleteFileCloudinary(finalImageId);
+        console.log(file)
         if (cloudinaryResponse.result !== 'ok'){
             return res.status(500).json({message: "Failed To Delete File!"});
         }
