@@ -140,7 +140,7 @@ class FileInterface{
     static async #moveFiles(req, res, next){
 
         // extractint the selected folder and file from the request
-        const {selectedFolderId, fileId} = req.body;
+        const {selectedFolderId, moveData} = req.body;
 
         // check if the given file and folder exists in the database
         const selectedFolder = await prisma.folder.findUnique({
@@ -148,7 +148,7 @@ class FileInterface{
         });
 
         const selectedFile = await prisma.file.findUnique({
-            where: {id: fileId}
+            where: {id: moveData}
         })
 
         // if they don't exist, we notify the client    
@@ -160,7 +160,6 @@ class FileInterface{
         const fileURL = selectedFile.fileUrl.split('/');
         const filePublicId = fileURL.pop().split('.')[0];
         const filePath = fileURL.slice(7, 9).join('/') + '/' +  filePublicId;
-
         const cloudinaryResponse = await CloudinaryInterface.moveFileCloudinary(filePath, selectedFolder.folderPath, selectedFolder.folderName, filePublicId, next);
         if (!cloudinaryResponse){
             return res.status(500).json({message: "An Error Occured!"});
@@ -168,7 +167,7 @@ class FileInterface{
 
         // we can finally update the meta-data in psql database 
         const updatedFile = await prisma.file.update({
-            where: {id: fileId},
+            where: {id: moveData},
             data: {
                 folder: {connect: {id: selectedFolder.id}},
                 fileUrl: cloudinaryResponse.renamedFile.url

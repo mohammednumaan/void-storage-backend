@@ -38,6 +38,32 @@ class FolderInterface{
         }});
         return res.json({message: "Root Folder Retrieved Successfully!", rootFolderId: rootFolder.id});
     }
+
+    static async #getAvailableFolders(req, res, next){
+
+        // extract the folder's id the user is in from the request url
+        const {folderId} = req.params;
+
+        // check if the folder exists in the database
+        const folder = await prisma.folder.findUnique({
+            where: {id: folderId}
+        })
+        
+        // if it doesn't exist in the database, we notify the client
+        if (!folder) return res.satatus(404).json({message: "Cannot Move Assets/Folders of Unavailable Folder!"});
+
+        // now, we need to select all the folders that is NOT the folder the user is in
+        // these are all the available folders where the user can move the new file/folder
+        const availableFolders = await prisma.folder.findMany({
+            where: {
+                AND: [
+                    {userId: req.user.id},
+                    {id: {not: folder.id}}
+                ]
+            }
+        })
+        return res.json({message: "Available Folders Retrieved Successfully!", availableFolders})
+    }
     
     static async #createFolder(req, res, next){
         // we first check if there was any validation errors
@@ -195,6 +221,10 @@ class FolderInterface{
 
     static editFolder(req, res, next){
         return asyncHandler(() => FolderInterface.#editFolder(req, res, next))();
+    }
+
+    static getAvailableFolders(req, res, next){
+        return asyncHandler(() => FolderInterface.#getAvailableFolders(req, res, next))();
     }
 
 }
