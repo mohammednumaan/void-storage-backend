@@ -177,6 +177,38 @@ class FileInterface{
         return res.json({message: "File Moved Successfully!", movedFile: updatedFile})
     }
 
+    static async #editFile(req, res, next){
+        const {folderId, fileId, newFileName} = req.body;
+        const file = await prisma.file.findUnique({
+            where: {id: fileId}
+        })
+        
+        const fileExtension = file.fileName.split('.')[file.fileName.split('.').length - 1];
+
+        const fileWithSameNameExists = await prisma.file.findMany({where: {
+            AND: [
+                {fileName: newFileName + '.' + fileExtension},
+                {folderId: folderId}
+
+            ]
+        }})
+
+        console.log(fileWithSameNameExists)
+        if (fileWithSameNameExists.length !== 0) return res.status(400).json({message: "File with the same name exists in this folder!"});
+        const renamedFile = await prisma.file.update({
+            where: {
+                id: fileId,
+                folderId: folderId
+            }, 
+            data: {
+                fileName: newFileName + "." + fileExtension
+            }
+        })
+
+        return res.json({message: "File Renamed Successfully!", renamedFile})
+
+    }
+
 
     static getFiles(req, res, next){  
         return asyncHandler(() => FileInterface.#getFiles(req, res, next))()
@@ -193,6 +225,11 @@ class FileInterface{
     static moveFile(req, res, next){
         return asyncHandler(() => FileInterface.#moveFiles(req, res, next))();
     }
+
+    static editFile(req, res, next){
+        return asyncHandler(() => FileInterface.#editFile(req, res, next))();
+    }
+
 
 }
 
