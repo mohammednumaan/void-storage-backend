@@ -40,11 +40,12 @@ class CloudinaryInterface{
     }
 
     static async uploadFileCloudinary(folderPath, dataUri,  next){
-        try{                  
+        try{        
+            console.log(folderPath)          
             const uploadedFile = await cloudinary.uploader.upload(dataUri, {asset_folder: folderPath, use_asset_folder_as_public_id_prefix: true})
             return uploadedFile;
         } catch(error){
-            return next(error);
+            console.log(error)
         }
     }
 
@@ -64,9 +65,10 @@ class CloudinaryInterface{
             // a new publicId and a new folder path to change the folder as well as the name
             const newPublicId = `${newAssetFolder}${folderName}/${fileName}`
             const newFolderPath = `${newAssetFolder}${folderName}/`
-
+            console.log("PUB", newPublicId, "FOLDER", newFolderPath, "IMG", imagePublicId)
             // we can now rename as well as update the folder path of the asset in cloudinary
             const movedFile = await cloudinary.api.update(imagePublicId, {asset_folder: newFolderPath.substring(1)})
+            console.log(movedFile)
             const renamedFile = await cloudinary.uploader.rename(imagePublicId, newPublicId.substring(1));
             
             // return the updated details

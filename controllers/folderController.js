@@ -106,8 +106,8 @@ class FolderInterface{
         // now, i need to store the file meta-date in the psql database
         // and store the actual file in cloudinary in the right path
         // this path can be determined from the meta-data i stored in the psql database
-        const {parentFolderId, newFolderName} = req.body;
-
+        let {parentFolderId, newFolderName} = req.body;
+        newFolderName = newFolderName.trim();
         // the first thing to do is to check if a folder with 
         // the same name exists in the database
         const folderExists = await prisma.folder.findFirst({

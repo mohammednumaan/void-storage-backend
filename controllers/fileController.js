@@ -80,7 +80,6 @@ class FileInterface{
         if (parentFolder.folderName === 'root'){
             newFolderPath = `${parentFolder.folderPath}${parentFolder.folderName}-${req.user.id}/`
         }
-
         // since we have a file that is stored as a buffer, we need to upload it to
         // cloudinary by converting it to base64 (since cloudinary only uses string or file paths for upload)
         const base64EncodedImage = Buffer.from(req.file.buffer).toString("base64");
@@ -90,6 +89,9 @@ class FileInterface{
         // the uploaded file's path, which we can use to display in the front-end
         const uploadedFile = await CloudinaryInterface.uploadFileCloudinary(newFolderPath, dataUri,  next);
         
+        if (!uploadedFile){
+            return res.status(500).json({message: "File Upload Failed!"})
+        }
         // now, we can safely create/upload the file in the database as well
         // as in cloudinary via the req.file object
         const newFile = await prisma.file.create({
@@ -159,7 +161,7 @@ class FileInterface{
         // to rename the file we are going to move
         const fileURL = selectedFile.fileUrl.split('/');
         const filePublicId = fileURL.pop().split('.')[0];
-        const filePath = fileURL.slice(7, 9).join('/') + '/' +  filePublicId;
+        const filePath = fileURL.slice(7).join('/') + '/' +  filePublicId;
         const cloudinaryResponse = await CloudinaryInterface.moveFileCloudinary(filePath, selectedFolder.folderPath, selectedFolder.folderName, filePublicId, next);
         if (!cloudinaryResponse){
             return res.status(500).json({message: "An Error Occured!"});
