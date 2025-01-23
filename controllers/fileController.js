@@ -182,7 +182,6 @@ class FileInterface{
         const file = await prisma.file.findUnique({
             where: {id: fileId}
         })
-        
         const fileExtension = file.fileName.split('.')[file.fileName.split('.').length - 1];
 
         const fileWithSameNameExists = await prisma.file.findMany({where: {

@@ -64,6 +64,36 @@ class FolderInterface{
         })
         return res.json({message: "Available Folders Retrieved Successfully!", availableFolders})
     }
+
+    static async #getFolderPathSegment(req, res, next){
+        const {folderId} = req.params;
+        const folderSegments = [];
+        const currentFolder = await prisma.folder.findUnique({
+            where: {id: folderId}
+        })
+        console.log("FOLDERID", folderId, currentFolder)
+
+        if (!currentFolder) return res.status(404).json({message: "Folder Not Found!"});
+
+        folderSegments.push(currentFolder)
+        const rootFolderId = currentFolder.folderPath.split('/')[1].slice(5);
+        let currentId = currentFolder.folderId;
+
+
+        while (currentId && currentId !== rootFolderId){
+            const folder = await prisma.folder.findUnique({where: {id: currentId}});
+            if (folder){
+                folderSegments.unshift(folder);
+                currentId = folder.folderId;
+            } else{
+                currentId = null;
+            }
+        }
+
+        return res.json({message: "Folder Path Segments Retrieved!", folderSegments})
+        
+        
+    }
     
     static async #createFolder(req, res, next){
         // we first check if there was any validation errors
@@ -207,6 +237,11 @@ class FolderInterface{
     static getRootFolder(req, res, next){
         return asyncHandler(() => FolderInterface.#getRootFolder(req, res, next))();
     }
+
+    static getFolderSegements(req, res, next){
+        return asyncHandler(() => FolderInterface.#getFolderPathSegment(req, res, next))();
+    }
+
 
     static createFolderPost(req, res, next){
         return [

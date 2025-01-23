@@ -38,6 +38,7 @@ router.get('/folders', FolderInterface.getFolder);
 router.get('/folders/root', FolderInterface.getRootFolder)
 router.get('/folders/:parentFolderId', FolderInterface.getFolder);
 router.get('/folders/available/:folderId', FolderInterface.getAvailableFolders);
+router.get('/folders/segments/:folderId', FolderInterface.getFolderSegements)
 
 router.post('/folders', FolderInterface.createFolderPost);
 router.delete('/folders', FolderInterface.deleteFolder);
