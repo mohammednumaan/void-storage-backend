@@ -24,10 +24,9 @@ model Folder{
   id String @id @default(uuid())
   folderName String
 
-  parentFolder Folder? @relation(name: "parentFolderId", fields: [folderId], references: [id], onDelete: Cascade)
-  folderId String?
+  parent Folder? @relation(name: "parentFolderId", fields: [parentFolder], references: [id], onDelete: Cascade)
+  parentFolder String?
   subFolders Folder[] @relation("parentFolderId")
-  folderPath String?
 
   createdAt DateTime
   files File[]

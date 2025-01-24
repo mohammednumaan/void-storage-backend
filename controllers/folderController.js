@@ -3,6 +3,7 @@ const { PrismaClient } = require('@prisma/client');
 const { body, validationResult } = require('express-validator');
 const CloudinaryInterface = require('../cloudinary/cloudinary');
 const asyncHandler = require("express-async-handler");
+const { constructFolderPath } = require('../utils/constructPath');
 
 // initialize prisma client to query and modify the database
 const prisma = new PrismaClient();
@@ -19,7 +20,7 @@ class FolderInterface{
         const {parentFolderId} = req.params;
         const allSubFolders = await prisma.folder.findMany({where: {
             AND: [
-                {folderId: parentFolderId},
+                {parentFolder: parentFolderId},
                 {user: {id: req.user.id}}
             ]
         }});
@@ -36,6 +37,7 @@ class FolderInterface{
                 {user: {id: req.user.id}}
             ]
         }});
+        console.log(rootFolder)
         return res.json({message: "Root Folder Retrieved Successfully!", rootFolderId: rootFolder.id});
     }
 
@@ -67,31 +69,13 @@ class FolderInterface{
 
     static async #getFolderPathSegment(req, res, next){
         const {folderId} = req.params;
-        const folderSegments = [];
         const currentFolder = await prisma.folder.findUnique({
             where: {id: folderId}
         })
-        console.log("FOLDERID", folderId, currentFolder)
 
         if (!currentFolder) return res.status(404).json({message: "Folder Not Found!"});
-
-        folderSegments.push(currentFolder)
-        const rootFolderId = currentFolder.folderPath.split('/')[1].slice(5);
-        let currentId = currentFolder.folderId;
-
-
-        while (currentId && currentId !== rootFolderId){
-            const folder = await prisma.folder.findUnique({where: {id: currentId}});
-            if (folder){
-                folderSegments.unshift(folder);
-                currentId = folder.folderId;
-            } else{
-                currentId = null;
-            }
-        }
-
-        return res.json({message: "Folder Path Segments Retrieved!", folderSegments})
-        
+        const folderPath = await constructFolderPath(currentFolder);
+        return res.json({message: "Folder Path Constructed Successfully!", folderPath})
         
     }
     
@@ -108,18 +92,8 @@ class FolderInterface{
         // this path can be determined from the meta-data i stored in the psql database
         let {parentFolderId, newFolderName} = req.body;
         newFolderName = newFolderName.trim();
-        // the first thing to do is to check if a folder with 
-        // the same name exists in the database
-        const folderExists = await prisma.folder.findFirst({
-            where: {
-                AND: [ {user: {id: req.user.id}}, {folderId: parentFolderId}, {folderName: newFolderName} ]
-            }
-        });
-
-        // if true, we notify the client that the folder already exists
-        if (folderExists) return res.json({message: "Folder Already Exists!"});
-
-        // else, we create and store the new folder in the 
+        
+        // we create and store the new folder in the 
         // psql database as well as in cloudinary
         // to do that, i need to fetch the folder path 
         const parentFolder = await prisma.folder.findUnique({where: {
@@ -129,19 +103,33 @@ class FolderInterface{
 
         // now, we need to dynamically generate the folderPath (IMPORTANT)
         // this path determines the location of the asset in cloudinary
-        let newFolderPath = `${parentFolder.folderPath}${parentFolder.folderName}/`;
-        if (parentFolder.folderName === 'root'){
-            newFolderPath = `${parentFolder.folderPath}${parentFolder.folderName}-${req.user.id}/`
+        let newFolderPathArray = await constructFolderPath(parentFolder);
+        let newFolderPath = '';
+
+        if (newFolderPathArray.length === 0){
+            newFolderPath += `root-${req.user.id}/`
+        } 
+        else{
+            for (let i = 0; i < newFolderPathArray.length; i++){
+                if (newFolderPathArray[i].name == 'root'){
+                    newFolderPath += `/root-${req.user.id}/`
+                } else{
+                    newFolderPath += newFolderPathArray[i].name + '/'
+                }
+            }
         }
+        
+        console.log(newFolderPathArray)
+        console.log(newFolderPath)
 
         const newFolder = await prisma.folder.create({
             data: {
                 folderName: newFolderName,
-                parentFolder: {connect: {id: parentFolderId}},
+                parent: {connect: {id: parentFolderId}},
                 createdAt: new Date(),
                 files: {},
                 user: {connect: {id: req.user.id}},
-                folderPath: newFolderPath
+
             }
         })
 
@@ -245,7 +233,27 @@ class FolderInterface{
 
     static createFolderPost(req, res, next){
         return [
-            body("folderName").trim().notEmpty().withMessage("Folder name must not be empty!").escape(), 
+            body("folderName")
+                .trim()
+                .notEmpty()
+                .withMessage("Folder names must not be empty.").bail()
+                .isLength({max: 64})
+                .withMessage("Folder names cannot be larger than 64 characters.").bail()
+                .matches(/^[A-Za-z0-9-_ ]+$/g)
+                .withMessage('Folder names must only contain letters, numbers, hyphens, underscores, and spaces.').bail()
+                .custom(async (value, {req}) => {
+                    const duplicateFolder = await prisma.folder.findUnique({
+                        where: {
+                            parentFolder: req.body.parentFolderId,
+                            folderName: req.body.newFolderName,
+                            userId: req.user.id
+                        }
+                    })
+
+                    if (duplicateFolder) throw new Error("A folder with this name already exists in this directory. Please choose a different name.");
+                    return true;
+                })
+                .escape(), 
             asyncHandler(() => FolderInterface.#createFolder(req, res, next))()
         ];
     }

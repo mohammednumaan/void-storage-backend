@@ -57,7 +57,6 @@ exports.register_post = [
                             folderName: 'root',
                             files: {},
                             createdAt: new Date(),
-                            folderPath: "/"
                         }
                     }
                 }
