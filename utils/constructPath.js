@@ -16,13 +16,13 @@ const constructFilePath = async (file) => {
 
 const constructFolderPath = async (folder) => {
     let folderPath = [{name: folder.folderName, id: folder.id}];
-    let curretFolder = folder;
-    while (curretFolder.parentFolder){
+    let currentFolder = folder;
+    while (currentFolder.parentFolder){
         const parentFolder = await prisma.folder.findUnique({
-            where: {id: folder.parentFolder}
+            where: {id: currentFolder.parentFolder}
         })
         folderPath.unshift({name: parentFolder.folderName, id: parentFolder.id})
-        curretFolder = parentFolder;
+        currentFolder = parentFolder;
     }
     return folderPath;
 }

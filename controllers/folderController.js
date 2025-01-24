@@ -141,14 +141,31 @@ class FolderInterface{
     static async #deleteFolder(req, res, next){
         // get the folder we are going to delete
         const folder = await prisma.folder.findUnique({where: {id: req.body.folderId}});
-
         // check if the folder if we tried to get exists. if it doesn't
         // notify the client that the folder doesn't exist
         if (!folder) return res.status(404).json({error: "Folder Not Found!"});
 
-        
+        // here, i dynamically construct the path of the folder
+        let newFolderPathArray = await constructFolderPath(folder);
+        console.log(newFolderPathArray)
+        let folderPath = '';
+
+        // here, i dynamically construct the path of the folder
+        if (newFolderPathArray.length === 0){
+            folderPath += `root-${req.user.id}/`
+        } 
+        else{
+            for (let i = 0; i < newFolderPathArray.length; i++){
+                if (newFolderPathArray[i].name == 'root'){
+                    folderPath += `/root-${req.user.id}/`
+                } else{
+                    folderPath += newFolderPathArray[i].name + '/'
+                }
+            }
+        }
+        console.log(folderPath)
         // here, we delete the folder from cloudinary as well
-        const cloudinaryResponse = await CloudinaryInterface.deleteFolderCloudinary(folder.folderPath, folder.folderName, next); 
+        const cloudinaryResponse = await CloudinaryInterface.deleteFolderCloudinary(folderPath, folder.folderName, next); 
         if (!cloudinaryResponse?.deleted || cloudinaryResponse.deleted.length === 0){
             return res.status(500).json({message: "Failed To Delete Folder!"})
         }
