@@ -163,7 +163,6 @@ class FolderInterface{
                 }
             }
         }
-        console.log(folderPath)
         // here, we delete the folder from cloudinary as well
         const cloudinaryResponse = await CloudinaryInterface.deleteFolderCloudinary(folderPath, folder.folderName, next); 
         if (!cloudinaryResponse?.deleted || cloudinaryResponse.deleted.length === 0){
@@ -193,7 +192,7 @@ class FolderInterface{
         if (!folder) return res.status(404).json({error: "Folder Not Found!"});
 
         // we now update/rename the folder name in the database
-        const updatedFolder = await prisma.folder.update({
+        const renamedFolder = await prisma.folder.update({
             where: {
                 id: req.body.folderId,
             },
@@ -202,37 +201,7 @@ class FolderInterface{
             }
         })
 
-        // now, we fetch the sub-folders with their parent as
-        // the above folder to rename their paths. Note that by maintaining a file
-        // path string in the database this operation is slower. a better alternate would
-        // be to store a tree structure for efficient re-name operations
-        const allSubFolders = await prisma.folder.findMany({where: {
-            AND: [
-                // {folderId: req.body.folderId},   
-                {user: {id: req.user.id}}
-            ]
-        }});
-
-        const folderPathNestedCount = updatedFolder.folderPath.split("/").filter((str) => str != "").length;
-        // we iterate the array to change their file paths, this is an expensive
-        // operation as mentioned earlier
-        
-        // allSubFolders.filter((folder) => {
-        //     return !folder.folderPath.startsWith(`${}`) || folder.id != req.body.folderId
-        // });
-        // for (let i = 0; i < allSubFolders.length; i++){
-        //     const folderPath = allSubFolders[i].folderPath.split("/").filter((str) => str != "");
-        //     folderPath[folderPathNestedCount] = req.body.newFolderName;
-        //     await prisma.folder.update({
-        //         where: {
-        //             id: allSubFolders[i].id,
-        //         },
-        //         data:{
-        //             folderPath: folderPath.join("/") + "/"
-        //         }
-        //     })
-            
-        // }
+        return res.json({message: "Folder Renamed Successfully!", renamedFolder})
     }
 
     static getFolder(req, res, next){
