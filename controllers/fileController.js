@@ -99,7 +99,7 @@ class FileInterface{
         
         // now we upload it to cloudinary, the response received will contain
         // the uploaded file's path, which we can use to display in the front-end
-        const uploadedFile = await CloudinaryInterface.uploadFileCloudinary(newFolderPath, dataUri,  next);
+        const uploadedFile = await CloudinaryInterface.uploadFileCloudinary(newFolderPath, dataUri, parentFolderId,  next);
         
         if (!uploadedFile){
             return res.status(500).json({message: "File Upload Failed!"})
@@ -134,7 +134,8 @@ class FileInterface{
         // to the delete function to delete the file
         const publicId = file.fileUrl.split('/');
         const imageName = publicId.pop().split('.')[0];
-        const finalImageId = publicId.splice(7, 10).join('/') + '/' + imageName;
+        const finalImageId = publicId.splice(7, 8).join('/') + '/' + imageName;
+        console.log(finalImageId)
         
         const cloudinaryResponse = await CloudinaryInterface.deleteFileCloudinary(finalImageId);
         console.log(file)
@@ -224,7 +225,6 @@ class FileInterface{
             ]
         }})
 
-        console.log(fileWithSameNameExists)
         if (fileWithSameNameExists.length !== 0) return res.status(400).json({message: "File with the same name exists in this folder!"});
         const renamedFile = await prisma.file.update({
             where: {

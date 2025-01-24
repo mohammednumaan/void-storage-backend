@@ -24,11 +24,11 @@ class CloudinaryInterface{
         }
     }
 
-    static async deleteFolderCloudinary(folderPath, folderName, next){
+    static async deleteFolderCloudinary(folderPath, folderId, next){
         try{
             // to delete a folder in cloudinary the folder shouldn't contain
             // any resources like images or videos, so we delete all those assets first
-            await cloudinary.api.delete_resources_by_prefix(folderPath.substring(1));
+            await cloudinary.api.delete_resources_by_prefix(folderId);
             console.log("hi")
             // at this point we know for sure that the folder is empty, so we
             // simply delete the folder from cloduinary           
@@ -39,10 +39,20 @@ class CloudinaryInterface{
         }
     }
 
-    static async uploadFileCloudinary(folderPath, dataUri,  next){
+    static async renameFolderCloudinary(oldFolderPath, newFolderPath, next){
+        try{
+
+            const renamedFolder = await cloudinary.api.rename_folder(oldFolderPath, newFolderPath);
+            return renamedFolder;
+        } catch(error){
+            console.log(error)
+        }
+    }
+
+    static async uploadFileCloudinary(folderPath, dataUri,folderId,  next){
         try{        
             console.log(folderPath)          
-            const uploadedFile = await cloudinary.uploader.upload(dataUri, {asset_folder: folderPath, use_asset_folder_as_public_id_prefix: true})
+            const uploadedFile = await cloudinary.uploader.upload(dataUri, {asset_folder: folderPath, public_id_prefix: folderId})
             return uploadedFile;
         } catch(error){
             console.log(error)

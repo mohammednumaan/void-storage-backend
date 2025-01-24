@@ -164,7 +164,7 @@ class FolderInterface{
             }
         }
         // here, we delete the folder from cloudinary as well
-        const cloudinaryResponse = await CloudinaryInterface.deleteFolderCloudinary(folderPath, folder.folderName, next); 
+        const cloudinaryResponse = await CloudinaryInterface.deleteFolderCloudinary(folderPath, folder.id, next); 
         if (!cloudinaryResponse?.deleted || cloudinaryResponse.deleted.length === 0){
             return res.status(500).json({message: "Failed To Delete Folder!"})
         }
@@ -191,7 +191,33 @@ class FolderInterface{
         // notify the client that the folder doesn't exist
         if (!folder) return res.status(404).json({error: "Folder Not Found!"});
 
+        const folderPathArray = await constructFolderPath(folder);
+        let folderPath = '';
+
+        // here, i dynamically construct the path of the folder
+        if (folderPathArray.length === 0){
+            folderPath += `root-${req.user.id}/`
+        } 
+        else{
+            for (let i = 0; i < folderPathArray.length; i++){
+                if (folderPathArray[i].name == 'root'){
+                    folderPath += `/root-${req.user.id}/`
+                } else{
+
+                    folderPath += folderPathArray[i].name;
+                }
+            }
+        }
+
+        let folderPathSplit = folderPath.split('/');
+        console.log(folderPathSplit)
+        folderPathSplit[folderPathSplit.length - 1] = req.body.newFolderName;
+        let newFolderPath = folderPathSplit.join('/')
+        console.log(folderPath, newFolderPath)
+
         // we now update/rename the folder name in the database
+        
+        const cloudinaryResponse = await CloudinaryInterface.renameFolderCloudinary(folderPath.substring(1), newFolderPath.substring(1));
         const renamedFolder = await prisma.folder.update({
             where: {
                 id: req.body.folderId,
@@ -200,6 +226,8 @@ class FolderInterface{
                 folderName: req.body.newFolderName
             }
         })
+        console.log(cloudinaryResponse)
+
 
         return res.json({message: "Folder Renamed Successfully!", renamedFolder})
     }

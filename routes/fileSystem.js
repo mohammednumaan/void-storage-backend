@@ -42,8 +42,8 @@ router.get('/folders/segments/:folderId', FolderInterface.getFolderSegements)
 
 router.post('/folders', FolderInterface.createFolderPost);
 router.delete('/folders', FolderInterface.deleteFolder);
+router.put('/folders', FolderInterface.editFolder)
 
-// router.put('/folders', FolderInterface.editFolder)
 // router.put('/folders/move', fileSystemController.folder_move)
 
 // exporting the fileSystem router object
