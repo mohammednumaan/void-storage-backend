@@ -3,7 +3,7 @@ const { PrismaClient } = require('@prisma/client');
 const { body, validationResult } = require('express-validator');
 const CloudinaryInterface = require('../cloudinary/cloudinary');
 const asyncHandler = require("express-async-handler");
-const { constructFolderPath } = require('../utils/constructPath');
+const { constructFolderPath, constructPathString } = require('../utils/constructPath');
 
 // initialize prisma client to query and modify the database
 const prisma = new PrismaClient();
@@ -37,7 +37,6 @@ class FolderInterface{
                 {user: {id: req.user.id}}
             ]
         }});
-        console.log(rootFolder)
         return res.json({message: "Root Folder Retrieved Successfully!", rootFolderId: rootFolder.id});
     }
 
@@ -60,11 +59,14 @@ class FolderInterface{
             where: {
                 AND: [
                     {userId: req.user.id},
-                    {id: {not: folder.id}}
-                ]
+                    {id: {not: folder.id}},
+                ],
+
+                OR: [{parentFolder: {not: folder.id}}]
             }
         })
-        return res.json({message: "Available Folders Retrieved Successfully!", availableFolders})
+        console.log(folder.id, availableFolders)
+        return res.json({message: "Available Folders Retrieved Successfully!", folders: availableFolders})
     }
 
     static async #getFolderPathSegment(req, res, next){
@@ -75,7 +77,7 @@ class FolderInterface{
 
         if (!currentFolder) return res.status(404).json({message: "Folder Not Found!"});
         const folderPath = await constructFolderPath(currentFolder);
-        return res.json({message: "Folder Path Constructed Successfully!", folderPath})
+        return res.json({message: "Folder Path Constructed Successfully!", folderSegments: folderPath})
         
     }
     
@@ -103,24 +105,7 @@ class FolderInterface{
 
         // now, we need to dynamically generate the folderPath (IMPORTANT)
         // this path determines the location of the asset in cloudinary
-        let newFolderPathArray = await constructFolderPath(parentFolder);
-        let newFolderPath = '';
-
-        if (newFolderPathArray.length === 0){
-            newFolderPath += `root-${req.user.id}/`
-        } 
-        else{
-            for (let i = 0; i < newFolderPathArray.length; i++){
-                if (newFolderPathArray[i].name == 'root'){
-                    newFolderPath += `/root-${req.user.id}/`
-                } else{
-                    newFolderPath += newFolderPathArray[i].name + '/'
-                }
-            }
-        }
-        
-        console.log(newFolderPathArray)
-        console.log(newFolderPath)
+        let newFolderPath = await constructPathString(parentFolder, req.user.id);
 
         const newFolder = await prisma.folder.create({
             data: {
@@ -146,25 +131,10 @@ class FolderInterface{
         if (!folder) return res.status(404).json({error: "Folder Not Found!"});
 
         // here, i dynamically construct the path of the folder
-        let newFolderPathArray = await constructFolderPath(folder);
-        console.log(newFolderPathArray)
-        let folderPath = '';
-
-        // here, i dynamically construct the path of the folder
-        if (newFolderPathArray.length === 0){
-            folderPath += `root-${req.user.id}/`
-        } 
-        else{
-            for (let i = 0; i < newFolderPathArray.length; i++){
-                if (newFolderPathArray[i].name == 'root'){
-                    folderPath += `/root-${req.user.id}/`
-                } else{
-                    folderPath += newFolderPathArray[i].name + '/'
-                }
-            }
-        }
+        let newFolderPath = await constructPathString(folder, req.user.id);
+        
         // here, we delete the folder from cloudinary as well
-        const cloudinaryResponse = await CloudinaryInterface.deleteFolderCloudinary(folderPath, folder.id, next); 
+        const cloudinaryResponse = await CloudinaryInterface.deleteFolderCloudinary(newFolderPath, folder.id, next); 
         if (!cloudinaryResponse?.deleted || cloudinaryResponse.deleted.length === 0){
             return res.status(500).json({message: "Failed To Delete Folder!"})
         }
@@ -182,7 +152,7 @@ class FolderInterface{
         // the folder has been deleted successfully
         return res.status(204).json({message: "Folder Deleted Successfully!", deletedFolder: cloudinaryResponse.deleted})
     }
-
+    
     static async #editFolder(req, res, next){
         // get the folder we are going to rename/edit
         const folder = await prisma.folder.findUnique({where: {id: req.body.folderId}});
@@ -216,7 +186,6 @@ class FolderInterface{
         console.log(folderPath, newFolderPath)
 
         // we now update/rename the folder name in the database
-        
         const cloudinaryResponse = await CloudinaryInterface.renameFolderCloudinary(folderPath.substring(1), newFolderPath.substring(1));
         const renamedFolder = await prisma.folder.update({
             where: {
@@ -230,6 +199,45 @@ class FolderInterface{
 
 
         return res.json({message: "Folder Renamed Successfully!", renamedFolder})
+    }
+    static async #moveFolder(req, res, next){
+
+        // extractint the selected folder and file from the request
+        const {selectedFolderId, moveData} = req.body;
+
+        // check if the given file and folder exists in the database
+        const selectedFolder = await prisma.folder.findUnique({
+            where: {id: selectedFolderId}
+        });
+
+        const folder = await prisma.folder.findUnique({
+            where: {id: moveData}
+        });
+
+
+        
+        // if they don't exist, we notify the client    
+        if (!selectedFolder) return res.status(404).json({message: "Folder Not Found!"});
+
+        // now, we need to generate the file path dynamically
+        let oldFolderPath = await constructPathString(folder, req.user.id);
+        let newFolderPath = await constructPathString(selectedFolder, req.user.id);
+        newFolderPath += `${folder.folderName}`
+
+        const cloudinaryResponse = await CloudinaryInterface.renameFolderCloudinary(oldFolderPath.substring(1), newFolderPath.substring(1));
+        if (!cloudinaryResponse){
+            return res.status(500).json({message: "An Error Occured!"});
+        }
+
+        const movedFolder = await prisma.folder.update({
+            where: {id: folder.id},
+            data: {
+                parentFolder: selectedFolderId
+            }
+        })
+
+    
+        return res.json({message: "File Moved Successfully!", movedFolder})
     }
 
     static getFolder(req, res, next){
@@ -283,6 +291,11 @@ class FolderInterface{
     static getAvailableFolders(req, res, next){
         return asyncHandler(() => FolderInterface.#getAvailableFolders(req, res, next))();
     }
+
+    static moveFolder(req, res, next){
+        return asyncHandler(() => FolderInterface.#moveFolder(req, res, next))();
+    }
+
 
 }
 

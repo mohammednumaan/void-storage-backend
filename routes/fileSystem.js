@@ -44,7 +44,7 @@ router.post('/folders', FolderInterface.createFolderPost);
 router.delete('/folders', FolderInterface.deleteFolder);
 router.put('/folders', FolderInterface.editFolder)
 
-// router.put('/folders/move', fileSystemController.folder_move)
+router.put('/folders/move', FolderInterface.moveFolder)
 
 // exporting the fileSystem router object
 module.exports = router;

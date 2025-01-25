@@ -28,7 +28,20 @@ const constructFolderPath = async (folder) => {
     return folderPath;
 }
 
+const constructPathString = async (folder, userId) => {
+    let folderPath = '';
+    let folderPathArr = await constructFolderPath(folder);
+
+    if (!folderPathArr.length) folderPath += `/root-${userId}/`;
+    for (const segment of folderPathArr){
+        folderPath += (segment.name === 'root') ? `/root-${userId}/` : segment.name + '/';
+    }
+
+    return folderPath;
+}
+
 module.exports = {
     constructFilePath,
-    constructFolderPath
+    constructFolderPath,
+    constructPathString
 }

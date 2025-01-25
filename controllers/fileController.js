@@ -2,7 +2,7 @@
 const { PrismaClient } = require('@prisma/client');
 const CloudinaryInterface = require('../cloudinary/cloudinary');
 const asyncHandler = require("express-async-handler");
-const { constructFilePath, constructFolderPath } = require('../utils/constructPath');
+const { constructFilePath, constructFolderPath, constructPathString } = require('../utils/constructPath');
 
 // initialize prisma client to query and modify the database
 const prisma = new PrismaClient();
@@ -76,21 +76,7 @@ class FileInterface{
         }});
 
         // now, we need to generate the file path dynamically
-        let newFolderPathArray = await constructFolderPath(parentFolder);
-        let newFolderPath = '';
-
-        if (newFolderPathArray.length === 0){
-            newFolderPath += `root-${req.user.id}/`
-        } 
-        else{
-            for (let i = 0; i < newFolderPathArray.length; i++){
-                if (newFolderPathArray[i].name == 'root'){
-                    newFolderPath += `/root-${req.user.id}/`
-                } else{
-                    newFolderPath += newFolderPathArray[i].name + '/'
-                }
-            }
-        }
+        let newFolderPath = await constructPathString(parentFolder, req.user.id);
 
         // since we have a file that is stored as a buffer, we need to upload it to
         // cloudinary by converting it to base64 (since cloudinary only uses string or file paths for upload)
@@ -171,21 +157,7 @@ class FileInterface{
         if (!selectedFile) return res.status(404).json({message: "File Not Found!"});
 
         // now, we need to generate the file path dynamically
-        let newFolderPathArray = await constructFolderPath(selectedFolder);
-        let newFolderPath = '';
-
-        if (newFolderPathArray.length === 0){
-            newFolderPath += `root-${req.user.id}/`
-        } 
-        else{
-            for (let i = 0; i < newFolderPathArray.length; i++){
-                if (newFolderPathArray[i].name == 'root'){
-                    newFolderPath += `/root-${req.user.id}/`
-                } else{
-                    newFolderPath += newFolderPathArray[i].name + '/'
-                }
-            }
-        }
+        let newFolderPath = await constructPathString(parentFolder, req.user.id);
 
         // here, we need to construct a proper url/id for cloudinary to use
         // to rename the file we are going to move
