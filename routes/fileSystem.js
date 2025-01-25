@@ -1,6 +1,6 @@
 // imports
 const express = require('express');
-const FolderInterface = require('../controllers/folderController');
+const folderInterface = require('../controllers/folderController');
 const FileInterface = require('../controllers/fileController');
 const multer = require("multer");
 
@@ -34,17 +34,15 @@ FOLDER ROUTES ARE DEFINED BELOW. THESE INCLUDE:
     - Editing Folder Routes
     - Deleting Folders Routes
 */
-router.get('/folders', FolderInterface.getFolder); 
-router.get('/folders/root', FolderInterface.getRootFolder)
-router.get('/folders/:parentFolderId', FolderInterface.getFolder);
-router.get('/folders/available/:folderId', FolderInterface.getAvailableFolders);
-router.get('/folders/segments/:folderId', FolderInterface.getFolderSegements)
+router.get('/folders/root', folderInterface.getRootFolder)
+router.get('/folders/:parentFolderId', folderInterface.getFolders);
+router.get('/folders/segments/:folderId', folderInterface.getFolderPathSegments)
 
-router.post('/folders', FolderInterface.createFolderPost);
-router.delete('/folders', FolderInterface.deleteFolder);
-router.put('/folders', FolderInterface.editFolder)
+router.post('/folders', folderInterface.validateFolder, folderInterface.createFolder);
+router.delete('/folders', folderInterface.deleteFolder);
 
-router.put('/folders/move', FolderInterface.moveFolder)
+router.put('/folders', folderInterface.validateFolder, folderInterface.editFolder)
+router.put('/folders/move', folderInterface.moveFolder)
 
 // exporting the fileSystem router object
 module.exports = router;

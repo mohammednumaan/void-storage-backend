@@ -3,6 +3,7 @@ const { PrismaClient } = require('@prisma/client');
 const CloudinaryInterface = require('../cloudinary/cloudinary');
 const asyncHandler = require("express-async-handler");
 const { constructFilePath, constructFolderPath, constructPathString } = require('../utils/constructPath');
+const { body } = require('express-validator');
 
 // initialize prisma client to query and modify the database
 const prisma = new PrismaClient();
@@ -152,12 +153,15 @@ class FileInterface{
             where: {id: moveData}
         })
 
-        // if they don't exist, we notify the client    
-        if (!selectedFolder) return res.status(404).json({message: "Folder Not Found!"});
-        if (!selectedFile) return res.status(404).json({message: "File Not Found!"});
+        const sameFileNameExists = await prisma.file.findFirst({
+            where: {
+                AND: [{folderId: selectedFolder.id}, {fileName: selectedFile.fileName}]
+            }
+        })
 
+        if (sameFileNameExists) return res.status(403).json({message: "A file with the same name already exists in the selected folder."})
         // now, we need to generate the file path dynamically
-        let newFolderPath = await constructPathString(parentFolder, req.user.id);
+        let newFolderPath = await constructPathString(selectedFolder, req.user.id);
 
         // here, we need to construct a proper url/id for cloudinary to use
         // to rename the file we are going to move
@@ -230,10 +234,31 @@ class FileInterface{
     }
 
     static editFile(req, res, next){
-        return asyncHandler(() => FileInterface.#editFile(req, res, next))();
+        return [
+            body("newFileName")
+            .trim()
+            .notEmpty()
+            .withMessage("File names cannot be empty!").bail()
+            .isLength({max: 64})
+            .withMessage("File names cannot be larger than 64 characters.").bail()
+            .matches(/^[A-Za-z0-9-_ ]+$/g)
+            .withMessage('File names must only contain letters, numbers, hyphens, underscores, and spaces.').bail()
+            .custom(async (value, {req}) => {
+                const duplicateFile = await prisma.file.findFirst({
+                    where: {
+                        parentFolder: req.body.folderId,
+                        folderName: value,
+                        userId: req.user.id
+                    }
+                })
+                if (duplicateFile) return false;
+                return true;
+            })
+            .withMessage("A file with the name already exists in this folder. Please choose a different name.")
+            .escape(),
+            asyncHandler(FileInterface.#editFile(req, res, next))
+        ]
     }
-
-
 }
 
 

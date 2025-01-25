@@ -2,7 +2,6 @@ const prisma = require("../prisma")
 
 const constructFilePath = async (file) => {
     let folderPath = null;
-    console.log(file)
     if (file.folderId !== null){
         const parentFolder = await prisma.folder.findUnique({
             where: {id: file.folderId}
