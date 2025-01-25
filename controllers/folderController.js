@@ -49,7 +49,7 @@ const folderInterface = {
 
     // this method, validates the input fields while creating/editing a folder
     validateFolder: [
-        validateInput("newFolderName"),
+        validateInput("folder", "newFolderName"),
         getValidationErrors,
     ],
 

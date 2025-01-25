@@ -1,21 +1,14 @@
 // imports
-const { PrismaClient } = require('@prisma/client');
 const CloudinaryInterface = require('../cloudinary/cloudinary');
 const asyncHandler = require("express-async-handler");
-const { constructFilePath, constructFolderPath, constructPathString } = require('../utils/constructPath');
-const { body } = require('express-validator');
+const { constructPathString } = require('../utils/constructPath');
+const { validateInput, getValidationErrors } = require('../utils/validateInput');
+const prisma = require('../prisma');
 
-// initialize prisma client to query and modify the database
-const prisma = new PrismaClient();
+const fileInterface = {
 
-// a class with STATIC methods to handle file related 
-// operations such as create, read, update, move, copy, delete operations
-
-class FileInterface{
-
-    static async #getFiles(req, res, next){
-
-        // extract the file and folder id that was requested
+    // this method, fetches all files within a folder
+    getFiles: asyncHandler(async (req, res, next) => {
         let {fileId, folderId} = req.params;
 
         // first, we check if the folder exists in the database
@@ -27,7 +20,7 @@ class FileInterface{
         }})
 
         // if it doesn't we notify the client
-        if (!folderExists) return res.status(404).json({message: "Folder Does Not Exist!"});
+        if (!folderExists) return res.status(404).json({message: "The folder for which the files were requested cannot be found."});
 
         // else, we fetch all the files uploaded within that folder
         const allFiles = await prisma.file.findMany({where: {
@@ -38,9 +31,18 @@ class FileInterface{
         }})
 
         res.json({message: "Files Retrieved Successfully!", allFiles})
-    }
-    
-    static async #uploadFile(req, res, next){
+    }),
+
+    // this method, validates the input fields while editing/renaming a file
+    validateFile: [
+        validateInput("file", "newFileName"),
+        getValidationErrors,
+    ],
+
+    // this method, uploads the given file to cloudinary and store 
+    // its meta-data in the psql database
+    uploadFile: asyncHandler(async (req, res, next) => {
+
         // extract the parentFolderId from the request body
         // this is the folderId in which the file is getting uploaded
         const {parentFolderId} = req.body;
@@ -51,23 +53,20 @@ class FileInterface{
         ]}})
         
         // if it doesn't, notify the client 
-        if (!folder) return res.status(404).json({message: "Folder Does Not Exist!"});
+        if (!folder) return res.status(404).json({message: "The selected folder for uploading this file could not be found."});
 
         // else, we upload the new file to cloudinary as
         // well as store meta-data about it in out psql database
         // but first, we need to check if a file with the same name exists
         const file = await prisma.file.findFirst({where: 
-            {
-                AND: [
+            {AND: [
                     {fileName: {equals: req.file.originalname}},
                     {folder: {id: folder.id}},
-                ]
-            }
-
+            ]}
         })
-        // check if we found a file with the same name. If true, notify 
-        // the client about the conflict of filenames
-        if (file) return res.status(409).json({error: "File Already Exists!"});
+
+        if (file) return res.status(409).json({error: "The folder already contains a file with the same name. Please rename the file."});
+
         // we need to upload and store the new file in the 
         // psql database as well as in cloudinary
         // to do that, i need to fetch the parent folder's path 
@@ -76,7 +75,7 @@ class FileInterface{
             userId: req.user.id
         }});
 
-        // now, we need to generate the file path dynamically
+        // now, we need to construct the file path dynamically
         let newFolderPath = await constructPathString(parentFolder, req.user.id);
 
         // since we have a file that is stored as a buffer, we need to upload it to
@@ -106,91 +105,19 @@ class FileInterface{
 
         // finally, we notify the client about the successfull upload
         return res.json({message: "File Uploaded Successfully!", uploadedFile: newFile});
-    } 
+    }),
 
-    static async #deleteFiles(req, res, next){
-        
-        const {fileId} = req.body;
-        
-        // checks if the file exists in the database. if not, we notify the client
-        const file = await prisma.file.findUnique({where: {id: fileId}})
-        if (!file) return res.status(404).json({message: "File Not Found!"});
-        
-        // else, we need to delete the asset from cloudinary. To do this
-        // we can extract the public_id from the image URL, this will be then fed
-        // to the delete function to delete the file
-        const publicId = file.fileUrl.split('/');
-        const imageName = publicId.pop().split('.')[0];
-        const finalImageId = publicId.splice(7, 8).join('/') + '/' + imageName;
-        console.log(finalImageId)
-        
-        const cloudinaryResponse = await CloudinaryInterface.deleteFileCloudinary(finalImageId);
-        console.log(file)
-        if (cloudinaryResponse.result !== 'ok'){
-            return res.status(500).json({message: "Failed To Delete File!"});
-        }
+    // this method, edits/renames a file
+    editFile: asyncHandler(async (req, res, next) => {
 
-        await prisma.file.delete({
-            where: {
-                id: fileId     
-            }
-        })
-
-        return res.json({message: "File Deleted Successfully!"});
-    }
-
-    static async #moveFiles(req, res, next){
-
-        // extractint the selected folder and file from the request
-        const {selectedFolderId, moveData} = req.body;
-
-        // check if the given file and folder exists in the database
-        const selectedFolder = await prisma.folder.findUnique({
-            where: {id: selectedFolderId}
-        });
-
-        const selectedFile = await prisma.file.findUnique({
-            where: {id: moveData}
-        })
-
-        const sameFileNameExists = await prisma.file.findFirst({
-            where: {
-                AND: [{folderId: selectedFolder.id}, {fileName: selectedFile.fileName}]
-            }
-        })
-
-        if (sameFileNameExists) return res.status(403).json({message: "A file with the same name already exists in the selected folder."})
-        // now, we need to generate the file path dynamically
-        let newFolderPath = await constructPathString(selectedFolder, req.user.id);
-
-        // here, we need to construct a proper url/id for cloudinary to use
-        // to rename the file we are going to move
-        const fileURL = selectedFile.fileUrl.split('/');
-        const filePublicId = fileURL.pop().split('.')[0];
-        const filePath = fileURL.slice(7).join('/') + '/' +  filePublicId;
-        console.log(fileURL, filePublicId, filePath)
-        const cloudinaryResponse = await CloudinaryInterface.moveFileCloudinary(filePath, newFolderPath, filePublicId, next);
-        if (!cloudinaryResponse){
-            return res.status(500).json({message: "An Error Occured!"});
-        }
-
-        // we can finally update the meta-data in psql database 
-        const updatedFile = await prisma.file.update({
-            where: {id: moveData},
-            data: {
-                folder: {connect: {id: selectedFolder.id}},
-                fileUrl: cloudinaryResponse.renamedFile.url
-            }
-        })
-        
-        return res.json({message: "File Moved Successfully!", movedFile: updatedFile})
-    }
-
-    static async #editFile(req, res, next){
         const {folderId, fileId, newFileName} = req.body;
+
+        // retrieve the requested file to edit from the database
         const file = await prisma.file.findUnique({
             where: {id: fileId}
         })
+
+        // extract the extension of the file from the filename
         const fileExtension = file.fileName.split('.')[file.fileName.split('.').length - 1];
 
         const fileWithSameNameExists = await prisma.file.findMany({where: {
@@ -201,7 +128,9 @@ class FileInterface{
             ]
         }})
 
-        if (fileWithSameNameExists.length !== 0) return res.status(400).json({message: "File with the same name exists in this folder!"});
+        // the reason we directly update the meta-data in the database and not
+        // rename the file in cloudinary is because, cloudinary generates a unique identifier
+        // for each asset, so this seemed unneccesary
         const renamedFile = await prisma.file.update({
             where: {
                 id: fileId,
@@ -213,54 +142,85 @@ class FileInterface{
         })
 
         return res.json({message: "File Renamed Successfully!", renamedFile})
+    }),
 
-    }
+    // this method, deletes a file
+    deleteFile: asyncHandler(async (req, res, next) => {
+        
+        const {fileId} = req.body;
+        
+        // checks if the file exists in the database. if not, we notify the client
+        const file = await prisma.file.findUnique({where: {id: fileId}})
+        if (!file) return res.status(404).json({message: "The requested file to delete cannot be found."});
+        
+        // else, we need to delete the asset from cloudinary. To do this
+        // we can extract the public_id from the image URL, this will be then fed
+        // to the delete function to delete the file
+        const publicId = file.fileUrl.split('/');
+        const imageName = publicId.pop().split('.')[0];
+        const finalImageId = publicId.splice(7, 8).join('/') + '/' + imageName;
+        
+        // deleting the asset from cloudinary and from the psql database
+        const cloudinaryResponse = await CloudinaryInterface.deleteFileCloudinary(finalImageId);
+        if (cloudinaryResponse.result !== 'ok'){
+            return res.status(500).json({message: "An error occured while deleting this file."});
+        }
 
+        await prisma.file.delete({
+            where: {
+                id: fileId     
+            }
+        })
+        return res.json({message: "File Deleted Successfully!"});
+    }),
 
-    static getFiles(req, res, next){  
-        return asyncHandler(() => FileInterface.#getFiles(req, res, next))()
-    }
+    // this method, moves a file from one folder to another
+    moveFile: asyncHandler(async (req, res, next) => {
+        
+        const {selectedFolderId, moveData} = req.body;
 
-    static uploadFile(req, res, next){  
-        return asyncHandler(() => FileInterface.#uploadFile(req, res, next))()
-    }
+        // check if the given file to move and the selectedfolder exists in the database
+        const selectedFolder = await prisma.folder.findUnique({where: {id: selectedFolderId}});
+        const fileToMove = await prisma.file.findUnique({where: {id: moveData}})
 
-    static deleteFile(req, res, next){
-        return asyncHandler(() => FileInterface.#deleteFiles(req, res, next))();
-    }
+        // checks if a file with the same name exists in the selected folder
+        const sameFileNameExists = await prisma.file.findFirst({
+            where: {
+                AND: [{folderId: selectedFolder.id}, {fileName: fileToMove.fileName}]
+            }
+        })
 
-    static moveFile(req, res, next){
-        return asyncHandler(() => FileInterface.#moveFiles(req, res, next))();
-    }
+        if (sameFileNameExists) return res.status(403).json({message: "A file with the same name already exists in the selected folder."})
 
-    static editFile(req, res, next){
-        return [
-            body("newFileName")
-            .trim()
-            .notEmpty()
-            .withMessage("File names cannot be empty!").bail()
-            .isLength({max: 64})
-            .withMessage("File names cannot be larger than 64 characters.").bail()
-            .matches(/^[A-Za-z0-9-_ ]+$/g)
-            .withMessage('File names must only contain letters, numbers, hyphens, underscores, and spaces.').bail()
-            .custom(async (value, {req}) => {
-                const duplicateFile = await prisma.file.findFirst({
-                    where: {
-                        parentFolder: req.body.folderId,
-                        folderName: value,
-                        userId: req.user.id
-                    }
-                })
-                if (duplicateFile) return false;
-                return true;
-            })
-            .withMessage("A file with the name already exists in this folder. Please choose a different name.")
-            .escape(),
-            asyncHandler(FileInterface.#editFile(req, res, next))
-        ]
-    }
+        // now, we need to construct the file path dynamically
+        let newFolderPath = await constructPathString(selectedFolder, req.user.id);
+
+        // here, we need to construct a proper url/id for cloudinary to use
+        // to rename the file we are going to move
+        // here, while dealing with paths, cloudinary does not need the file-extension
+        // so, here, i extract the display name (unique) from the url and remove the file extension
+        const fileURL = fileToMove.fileUrl.split('/');
+        const filePublicId = fileURL.pop().split('.')[0];
+        const filePath = fileURL.slice(7).join('/') + '/' +  filePublicId;
+
+        const cloudinaryResponse = await CloudinaryInterface.moveFileCloudinary(filePath, newFolderPath, filePublicId, next);
+        if (!cloudinaryResponse){
+            return res.status(500).json({message: "An error occured while moving this file."});
+        }
+
+        // we can safely update the meta-data in psql database 
+        const updatedFile = await prisma.file.update({
+            where: {id: moveData},
+            data: {
+                folder: {connect: {id: selectedFolder.id}},
+                fileUrl: cloudinaryResponse.renamedFile.url
+            }
+        })
+        
+        return res.json({message: "File Moved Successfully!", movedFile: updatedFile})
+    })
+
 }
 
-
-// exporting the FolderInterface class
-module.exports = FileInterface;
+// exports
+module.exports = fileInterface;
