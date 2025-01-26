@@ -85,7 +85,7 @@ const fileInterface = {
         
         // now we upload it to cloudinary, the response received will contain
         // the uploaded file's path, which we can use to display in the front-end
-        const uploadedFile = await CloudinaryInterface.uploadFileCloudinary(newFolderPath, dataUri, parentFolderId,  next);
+        const uploadedFile = await CloudinaryInterface.uploadFileCloudinary(newFolderPath, dataUri, parentFolderId, next);
         
         if (!uploadedFile){
             return res.status(500).json({message: "File Upload Failed!"})

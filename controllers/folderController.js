@@ -138,7 +138,7 @@ const folderInterface = {
         let newFolderPath = await constructPathString(folder, req.user.id);
         
         // here, we delete the folder from cloudinary
-        const cloudinaryResponse = await CloudinaryInterface.deleteFolderCloudinary(newFolderPath, folder.id, next); 
+        const cloudinaryResponse = await CloudinaryInterface.deleteFolderCloudinary(newFolderPath, newFolderPath.substring(1), next); 
         if (!cloudinaryResponse?.deleted || cloudinaryResponse.deleted.length === 0){
             return res.status(500).json({message: "Failed To Delete Folder!"})
         }
