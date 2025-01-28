@@ -158,11 +158,12 @@ const fileInterface = {
         // to the delete function to delete the file
         const publicId = file.fileUrl.split('/');
         const imageName = publicId.pop().split('.')[0];
-        const finalImageId = publicId.splice(7, 8).join('/') + '/' + imageName;
-        
+        const finalImageId = (publicId.slice(7).join('/') + '/' + imageName).replaceAll("%20", " ");
+                
         // deleting the asset from cloudinary and from the psql database
         const cloudinaryResponse = await CloudinaryInterface.deleteFileCloudinary(finalImageId);
         if (cloudinaryResponse.result !== 'ok'){
+            console.log(cloudinaryResponse)
             return res.status(500).json({message: "An error occured while deleting this file."});
         }
 
