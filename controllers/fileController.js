@@ -3,6 +3,7 @@ const CloudinaryInterface = require('../cloudinary/cloudinary');
 const asyncHandler = require("express-async-handler");
 const { constructPathString } = require('../utils/constructPath');
 const { validateInput, getValidationErrors } = require('../utils/validateInput');
+const { Readble } = require("stream")
 const prisma = require('../prisma');
 
 const fileInterface = {
@@ -32,6 +33,16 @@ const fileInterface = {
 
         res.json({message: "Files Retrieved Successfully!", allFiles})
     }),
+
+    // this method,fetches a single file
+    getSpecificFile: asyncHandler(async (req, res, next) => {
+        let {fileId} = req.params;
+
+        const file = await prisma.file.findUnique({where: {id: fileId}});
+        if (!file) return res.status(404).json({message: "The requested file cannot be found."});
+        return res.json({message: "File retrieved successfully!", file})
+    }),
+
 
     // this method, validates the input fields while editing/renaming a file
     validateFile: [
@@ -219,8 +230,28 @@ const fileInterface = {
         })
         
         return res.json({message: "File Moved Successfully!", movedFile: updatedFile})
-    })
+    }),
 
+    downloadFile: asyncHandler(async (req, res, next) => {
+        const { fileId } = req.params;
+        const file = await prisma.file.findUnique({
+            where: {id: fileId}
+        })
+
+        if (!file) return res.status(404).json({message: "File could not be found."});
+
+        const imageResponse = await fetch(file.fileUrl);
+        if (!imageResponse.ok){
+            return res.status(500).json({message: "Something went wrong. Could not fetch image."})
+        }
+
+        
+        res.setHeader('Content-Type', imageResponse.headers.get('content-type'));
+        res.setHeader('Content-Disposition', `attachment;`);
+
+        const buffer = await imageResponse.arrayBuffer();
+        res.send(Buffer.from(buffer));
+    })
 }
 
 // exports

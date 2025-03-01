@@ -20,6 +20,9 @@ FILE ROUTES ARE DEFINED BELOW. THESE INCLUDE:
     - Deleting Files Routes
 */
 router.get('/files/:folderId', fileInterface.getFiles);
+router.get('/files/asset/:fileId', fileInterface.getSpecificFile)
+router.get('/files/asset/download/:fileId', fileInterface.downloadFile)
+
 router.post('/files', upload.single("file"), fileInterface.uploadFile);
 
 router.delete('/files', fileInterface.deleteFile)
