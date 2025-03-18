@@ -2,6 +2,7 @@
 const { v2: cloudinary } = require('cloudinary');
 const dotenv = require('dotenv');
 dotenv.config();
+const prisma = require("../prisma")
 
 // configuring cloudinary
 cloudinary.config({
@@ -40,7 +41,7 @@ class CloudinaryInterface{
         }
     }
 
-    static async renameFolderCloudinary(oldFolderPath, newFolderPath, next){
+    static async renameFolderCloudinary(oldFolderPath, newFolderPath, folderId){
         try{
             const { resources } = await cloudinary.api.resources({
                 prefix: oldFolderPath,
@@ -49,7 +50,15 @@ class CloudinaryInterface{
 
             // here, i rename the assets publicId to reflect the file's location change
             for (const resource of resources){
-                await cloudinary.uploader.rename(resource.public_id, newFolderPath);                
+                const newPath = newFolderPath + '/' + resource.asset_id
+                const renamedFile = await cloudinary.uploader.rename(resource.public_id, newPath);    
+                await prisma.file.update({
+                    where: {fileUrl: resource.url},
+                    data: {
+                        folder: {connect: {id: folderId}},
+                        fileUrl: renamedFile.url
+                    }
+                })       
             }
             const renamedFolder = await cloudinary.api.rename_folder(oldFolderPath, newFolderPath);
             return renamedFolder;
@@ -84,6 +93,7 @@ class CloudinaryInterface{
             const newFolderPath = `${newAssetFolder}${imageName}`
             // we can now rename as well as update the folder path of the asset in cloudinary
             const movedFile = await cloudinary.api.update(imagePublicId, {asset_folder: newAssetFolder.substring(1)})
+            console.log(movedFile)
             const renamedFile = await cloudinary.uploader.rename(imagePublicId, newFolderPath.substring(1));
             
             // return the updated details

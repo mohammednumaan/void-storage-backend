@@ -176,9 +176,9 @@ const folderInterface = {
         let newFolderPath = await constructPathString(selectedFolder, req.user.id);
         newFolderPath += `${folderToMove.folderName}`
 
-        const cloudinaryResponse = await CloudinaryInterface.renameFolderCloudinary(oldFolderPath.substring(1), newFolderPath.substring(1));
+        const cloudinaryResponse = await CloudinaryInterface.renameFolderCloudinary(oldFolderPath.substring(1), newFolderPath.substring(1), folderToMove.id);
         if (!cloudinaryResponse){
-            return res.status(500).json({message: "An Error Occured!"});
+            return res.status(500).json({message: "An Error Occured Moving The Folder!"});
         }
 
         // finally, we can safely update the meta-data in the database
