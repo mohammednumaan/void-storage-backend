@@ -28,7 +28,8 @@ class CloudinaryInterface{
         try{
             // to delete a folder in cloudinary the folder shouldn't contain
             // any resources like images or videos, so we delete all those assets first
-            await cloudinary.api.delete_resources_by_prefix(folderPrefixPath);
+            const data = await cloudinary.api.delete_resources_by_prefix(folderPrefixPath);
+            console.log(data, folderPrefixPath, folderPath)
 
             // at this point we know for sure that the folder (and its sub-folders) are empty, so we
             // simply delete the folder from cloduinary           
@@ -41,6 +42,15 @@ class CloudinaryInterface{
 
     static async renameFolderCloudinary(oldFolderPath, newFolderPath, next){
         try{
+            const { resources } = await cloudinary.api.resources({
+                prefix: oldFolderPath,
+                type: 'upload'
+            })
+
+            // here, i rename the assets publicId to reflect the file's location change
+            for (const resource of resources){
+                await cloudinary.uploader.rename(resource.public_id, newFolderPath);                
+            }
             const renamedFolder = await cloudinary.api.rename_folder(oldFolderPath, newFolderPath);
             return renamedFolder;
         } catch(error){
@@ -71,11 +81,9 @@ class CloudinaryInterface{
 
             // to move a file from one folder to another, we need to provide 
             // a new publicId and a new folder path to change the folder as well as the name
-            const newFolderPath = `${newAssetFolder}/${imageName}`
-            console.log("PUB", "FOLDER", newAssetFolder, "IMG", imagePublicId)
+            const newFolderPath = `${newAssetFolder}${imageName}`
             // we can now rename as well as update the folder path of the asset in cloudinary
-            const movedFile = await cloudinary.api.update(imagePublicId, {asset_folder: newAssetFolder  .substring(1)})
-            console.log(movedFile)
+            const movedFile = await cloudinary.api.update(imagePublicId, {asset_folder: newAssetFolder.substring(1)})
             const renamedFile = await cloudinary.uploader.rename(imagePublicId, newFolderPath.substring(1));
             
             // return the updated details

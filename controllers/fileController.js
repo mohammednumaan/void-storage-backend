@@ -128,6 +128,8 @@ const fileInterface = {
             where: {id: fileId}
         })
 
+        const fileWithSameName = await prisma.file.find
+
         // extract the extension of the file from the filename
         const fileExtension = file.fileName.split('.')[file.fileName.split('.').length - 1];
 

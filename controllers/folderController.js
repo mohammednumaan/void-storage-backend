@@ -31,7 +31,6 @@ const folderInterface = {
         return res.json({message: "Root Folder Retrieved Successfully!", rootFolderId: rootFolder.id});
     }),
 
-    // this method, fetches all the 
 
     // this method, constructs a requested folder's full path which will be
     // used for breadcrumb navigation in the front-end
@@ -65,6 +64,11 @@ const folderInterface = {
             id: parentFolderId,
             userId: req.user.id
         }});
+
+        const folderExists = await prisma.folder.findFirst({where: {
+            folderName: newFolderName,
+            parentFolder: parentFolderId
+        }})
 
         // now, we need to dynamically generate the folderPath (IMPORTANT)
         // this path determines the location of the asset in cloudinary
