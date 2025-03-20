@@ -155,7 +155,7 @@ const folderInterface = {
                 files: true,
             }
         })
-        return res.status(204).json({message: "Folder Deleted Successfully!", deletedFolder: cloudinaryResponse.deleted})
+        res.status(204).json({message: "Folder Deleted Successfully!", deletedFolder: cloudinaryResponse.deleted})
     }),
 
     moveFolder: asyncHandler(async (req, res, next) => {

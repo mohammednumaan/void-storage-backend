@@ -12,6 +12,8 @@ USER ROUTES ARE DEFINED BELOW. THESE INCLUDE:
 router.get('/authenticate', userController.authenticate_get);
 router.post('/register', userController.register_post);
 router.post('/login', userController.login_post);
+router.post('/logout', userController.logout_post);
+
 
 // exports
 module.exports = router;

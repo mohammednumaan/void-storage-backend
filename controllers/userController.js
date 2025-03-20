@@ -95,6 +95,14 @@ exports.login_post = [
     }
 ]
 
+exports.logout_post = (req, res, next) => {
+    req.logout((err) => {
+        if (err) return res.status(500).json({message: 'Failed To Logout.'})
+    })
+
+    res.json({message: "Logged Out Successfully."})
+}
+
 // a middleware to handle an 'authenticate' get request
 exports.authenticate_get = (req, res, next) => {
     const authenticated = req.isAuthenticated();
