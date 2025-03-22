@@ -50,7 +50,7 @@ const folderInterface = {
     validateFolder: [
         validateInput("folder", "newFolderName"),
         getValidationErrors,
-    ],
+    ],  
 
     // this method, creates a new folder
     createFolder: asyncHandler(async (req, res, next) => {
@@ -112,7 +112,7 @@ const folderInterface = {
         oldFolderPathArr[oldFolderPathArr.length - 2] = newFolderName;
         let newFolderPath = oldFolderPathArr.join('/')
         // we now update/rename the folder name in cloudinary
-        const cloudinaryResponse = await CloudinaryInterface.renameFolderCloudinary(oldFolderPath.substring(1), newFolderPath.substring(1, newFolderPath.length - 1));
+        const cloudinaryResponse = await CloudinaryInterface.renameFolderCloudinary(oldFolderPath.substring(1), newFolderPath.substring(1, newFolderPath.length - 1), folder.id);
 
         if (!cloudinaryResponse){
             return res.status(500).json({message: "An error occured while editing this folder."})

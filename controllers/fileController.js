@@ -128,22 +128,12 @@ const fileInterface = {
             where: {id: fileId}
         })
 
-        const fileWithSameName = await prisma.file.find
-
         // extract the extension of the file from the filename
         const fileExtension = file.fileName.split('.')[file.fileName.split('.').length - 1];
-
-        const fileWithSameNameExists = await prisma.file.findMany({where: {
-            AND: [
-                {fileName: newFileName + '.' + fileExtension},
-                {folderId: folderId}
-
-            ]
-        }})
-
+        
         // the reason we directly update the meta-data in the database and not
         // rename the file in cloudinary is because, cloudinary generates a unique identifier
-        // for each asset, so this seemed unneccesary
+        // for each asset, so renaming the filename in cloudinary seemed unneccesary
         const renamedFile = await prisma.file.update({
             where: {
                 id: fileId,

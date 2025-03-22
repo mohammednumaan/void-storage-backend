@@ -35,17 +35,20 @@ const validateInput = (type, field) => {
         .matches(/^[A-Za-z0-9-_ ]+$/g)
         .withMessage('File names must only contain letters, numbers, hyphens, underscores, and spaces.').bail()
         .custom(async (value, {req}) => {
+
+            const file = await prisma.file.findFirst({where: {id: req.body.fileId}});
+            const fileName = file.fileName.split(".");
+            const fileExt = fileName[fileName.length - 1];
+
             const duplicateFile = await prisma.file.findFirst({
                 where: {
-                    parentFolder: req.body.folderId,
-                    folderName: value,
-                    userId: req.user.id
+                    folderId: req.body.folderId,
+                    fileName: value + '.' + fileExt,
                 }
             })
-            if (duplicateFile) return false;
+            if (duplicateFile) throw new Error("A file with this name already exists in this directory. Please choose a different name.");
             return true;
         })
-        .withMessage("A file with the name already exists in this folder. Please choose a different name.")
         .escape()
     }
 }
