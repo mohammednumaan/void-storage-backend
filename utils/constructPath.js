@@ -14,13 +14,24 @@ const constructFilePath = async (file) => {
     return folderPath;
 }
 
-const constructFolderPath = async (folder) => {
+const constructFolderPath = async (folder, parent, needsRoot) => {
     let folderPath = [{name: folder.folderName, id: folder.id}];
     let currentFolder = folder;
     while (currentFolder.parentFolder){
+        
+        if (parent && currentFolder.parentFolder === parent){
+            break;
+        }
         const parentFolder = await prisma.folder.findUnique({
             where: {id: currentFolder.parentFolder}
         })
+
+        if (!needsRoot){
+            if (currentFolder.parentFolder.folderName === "root"){
+                break;
+            }
+        }
+        
         folderPath.unshift({name: parentFolder.folderName, id: parentFolder.id})
         currentFolder = parentFolder;
     }

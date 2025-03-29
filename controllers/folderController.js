@@ -14,7 +14,7 @@ const folderInterface = {
         const allSubFolders = await prisma.folder.findMany({where: {
             AND: [
                 {parentFolder: parentFolderId},
-                {user: {id: req.user.id}}
+                // {user: {id: req.user.id}}
             ]
         }});
         res.json({message: "All Folders Retrieved Successfully!", folders: allSubFolders});
@@ -35,13 +35,14 @@ const folderInterface = {
     // this method, constructs a requested folder's full path which will be
     // used for breadcrumb navigation in the front-end
     getFolderPathSegments: asyncHandler(async (req, res, next) => {
-        const {folderId} = req.params;
+        const {parentFolder, folderId} = req.params;
         const currentFolder = await prisma.folder.findUnique({
             where: {id: folderId}
         })
 
+        
         if (!currentFolder) return res.status(404).json({message: "Folder Not Found!"});
-        const folderPath = await constructFolderPath(currentFolder);
+        const folderPath = await constructFolderPath(currentFolder, parentFolder, parentFolder ? false : true);
         return res.json({message: "Folder Path Segments Constructed Successfully!", folderSegments: folderPath})
         
     }),
@@ -189,7 +190,54 @@ const folderInterface = {
             }
         })
 
-        return res.json({message: "File Moved Successfully!", movedFolder})
+        return res.json({message: "Folder Moved Successfully!", movedFolder})
+    }),
+
+    shareFolder: asyncHandler(async (req, res, next) => {
+        const { folderId, duration, unit } = req.body;
+        console.log(req.body)
+        const selectedFolder = await prisma.folder.findUnique({where: {id: folderId}});
+
+        if (!duration) return res.status(400).json({message: "Expiry duration needs to be specified."});
+        if (!selectedFolder) return res.status(404).json({message: "The selected directory to move the folder could not be found."});
+
+        const nowDate = new Date();
+        const expiryDate = unit === "hours" ?
+             nowDate.setHours(nowDate.getHours() + duration) :
+             nowDate.setDate(nowDate.getDate() + duration)
+        const newFolderLink = await prisma.folderLinks.create({
+            data: {
+                folder: {connect: {id: folderId}},
+                expiresAt: new Date(expiryDate)
+            }
+        })
+
+        const folderLinkId = `view/public/folder/${newFolderLink.id}`;
+        return res.json({message: "Link generated successfully.", link: folderLinkId });
+
+    }),
+    getSharedFolder: asyncHandler(async (req, res, next) => {
+        const { linkId, type } = req.body;
+
+        if (type.toLowerCase() !== "folder"){
+            return res.status(400).json({message: "The requested resource is not of type folder."});
+        } 
+
+        const folderLink = await prisma.folderLinks.findUnique({
+            where: {id: linkId}
+        });
+        if (!folderLink) return res.status(404).json({message: "The requested resource could not be found."});
+        
+        const nowDate = new Date();
+
+        if (nowDate > folderLink.expiresAt) return res.status(400).json({message: "The generated link has expired, please request the owner to share a new link."})
+
+        const folder = await prisma.folder.findUnique({
+            where: {id: folderLink.folderId}
+        })
+        if (!folder) return res.status(404).json({message: "The requested folder could not be found."});
+
+        return res.json({message: "Folder Information Fetched Successfully", id: folder.id, type: 'Folder', name: folder.folderName})
     })
     
 }

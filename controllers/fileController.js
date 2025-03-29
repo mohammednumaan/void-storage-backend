@@ -16,7 +16,7 @@ const fileInterface = {
         const folderExists = await prisma.folder.findFirst({where: {
             AND: [
                 {id: {equals: folderId}}, 
-                {user: {id: req.user.id}}
+                // {user: {id: req.user.id}}
             ]
         }})
 
