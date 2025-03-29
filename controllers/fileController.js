@@ -243,6 +243,52 @@ const fileInterface = {
 
         const buffer = await imageResponse.arrayBuffer();
         res.send(Buffer.from(buffer));
+    }),
+
+    shareFile: asyncHandler(async (req, res, next) => {
+        const { resourceId, duration, unit } = req.body;
+        const selectedFile = await prisma.file.findUnique({where: {id: resourceId}});
+
+        if (!duration) return res.status(400).json({message: "Expiry duration needs to be specified."});
+        if (!selectedFile) return res.status(404).json({message: "The selected file could not be found."});
+
+        const nowDate = new Date();
+        const expiryDate = unit === "hours" ?
+             nowDate.setHours(nowDate.getHours() + duration) :
+             nowDate.setDate(nowDate.getDate() + duration)
+        const newFileLink = await prisma.fileLinks.create({
+            data: {
+                file: {connect: {id: resourceId}},
+                expiresAt: new Date(expiryDate)
+            }
+        })
+
+        const fileLinkId = `view/public/file/${newFileLink.id}`;
+        return res.json({message: "Link generated successfully.", link: fileLinkId });
+
+    }),
+    getSharedFile: asyncHandler(async (req, res, next) => {
+        const { linkId, type } = req.body;
+
+        if (type.toLowerCase() !== "file"){
+            return res.status(400).json({message: "The requested resource is not of type file."});
+        } 
+
+        const fileLink = await prisma.fileLinks.findUnique({
+            where: {id: linkId}
+        });
+        if (!fileLink) return res.status(404).json({message: "The requested resource could not be found."});
+        
+        const nowDate = new Date();
+
+        if (nowDate > fileLink.expiresAt) return res.status(400).json({message: "The generated link has expired, please request the owner to share a new link."})
+
+        const file = await prisma.file.findUnique({
+            where: {id: fileLink.fileId}
+        })
+        if (!file) return res.status(404).json({message: "The requested file could not be found."});
+
+        return res.json({message: "File Information Fetched Successfully", id: file.id, type: 'File', fileInfo: file})
     })
 }
 

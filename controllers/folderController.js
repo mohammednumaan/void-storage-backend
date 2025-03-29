@@ -194,12 +194,12 @@ const folderInterface = {
     }),
 
     shareFolder: asyncHandler(async (req, res, next) => {
-        const { folderId, duration, unit } = req.body;
+        const { resourceId, duration, unit } = req.body;
         console.log(req.body)
-        const selectedFolder = await prisma.folder.findUnique({where: {id: folderId}});
+        const selectedFolder = await prisma.folder.findUnique({where: {id: resourceId}});
 
         if (!duration) return res.status(400).json({message: "Expiry duration needs to be specified."});
-        if (!selectedFolder) return res.status(404).json({message: "The selected directory to move the folder could not be found."});
+        if (!selectedFolder) return res.status(404).json({message: "The selected directory could not be found."});
 
         const nowDate = new Date();
         const expiryDate = unit === "hours" ?
@@ -207,7 +207,7 @@ const folderInterface = {
              nowDate.setDate(nowDate.getDate() + duration)
         const newFolderLink = await prisma.folderLinks.create({
             data: {
-                folder: {connect: {id: folderId}},
+                folder: {connect: {id: resourceId}},
                 expiresAt: new Date(expiryDate)
             }
         })

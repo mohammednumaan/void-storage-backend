@@ -28,7 +28,8 @@ router.post('/files', upload.single("file"), fileInterface.uploadFile);
 router.delete('/files', fileInterface.deleteFile)
 router.put('/files/move', fileInterface.moveFile)
 router.put('/files', fileInterface.validateFile, fileInterface.editFile);
-// router.get('/files/file/:folderId/:fileId', fileSystemController.file_get);
+router.post('/files/generate/', fileInterface.shareFile)
+router.post('/files/view/public/:linkId', fileInterface.getSharedFile)
 
 
 /* 
