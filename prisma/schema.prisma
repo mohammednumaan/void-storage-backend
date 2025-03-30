@@ -54,14 +54,14 @@ model File{
 
 model FolderLinks {
   id String @id @default(uuid())
-  folder Folder @relation(fields: [folderId], references: [id])
+  folder Folder @relation(fields: [folderId], references: [id], onDelete: Cascade)
   folderId String
   expiresAt DateTime
 }
 
 model FileLinks {
   id String @id @default(uuid())
-  file File @relation(fields: [fileId], references: [id])
+  file File @relation(fields: [fileId], references: [id], onDelete: Cascade)
   fileId String
   expiresAt DateTime
 }
