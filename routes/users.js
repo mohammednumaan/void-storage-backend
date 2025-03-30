@@ -13,6 +13,8 @@ router.get('/authenticate', userController.authenticate_get);
 router.post('/register', userController.register_post);
 router.post('/login', userController.login_post);
 router.post('/logout', userController.logout_post);
+router.post('/profile', userController.post_username);
+router.post('/profile/delete', userController.delete_account);
 
 
 // exports

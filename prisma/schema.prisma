@@ -31,7 +31,7 @@ model Folder{
   createdAt DateTime
   files File[]
 
-  user User @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId String 
 
 

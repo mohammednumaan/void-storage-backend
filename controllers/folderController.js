@@ -55,6 +55,7 @@ const folderInterface = {
 
     // this method, creates a new folder
     createFolder: asyncHandler(async (req, res, next) => {
+
         // i need to store the file meta-data in the psql database
         // and store the actual file in cloudinary in the right path
         // this path can be determined from the meta-data i stored in the psql database

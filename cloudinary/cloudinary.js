@@ -25,12 +25,11 @@ class CloudinaryInterface{
         }
     }
 
-    static async deleteFolderCloudinary(folderPath, folderPrefixPath, next){
+    static async deleteFolderCloudinary(folderPath, folderPrefixPath){
         try{
             // to delete a folder in cloudinary the folder shouldn't contain
             // any resources like images or videos, so we delete all those assets first
             const data = await cloudinary.api.delete_resources_by_prefix(folderPrefixPath);
-            console.log(data, folderPrefixPath, folderPath)
 
             // at this point we know for sure that the folder (and its sub-folders) are empty, so we
             // simply delete the folder from cloduinary           
@@ -102,6 +101,7 @@ class CloudinaryInterface{
             console.log(error)
         }
     }
+
 }
 
 // exporting the cloudinary class
