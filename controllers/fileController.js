@@ -76,8 +76,13 @@ const fileInterface = {
             ]}
         })
 
-        if (file) return res.status(409).json({error: "The folder already contains a file with the same name. Please rename the file."});
 
+        if (file) return res.status(409).json({message: "The folder already contains a file with the same name. Please rename the file."});
+
+        const mimetype = req.file.mimetype;
+        if (mimetype.includes('video') || mimetype.includes('openxml')){
+            return res.status(400).json({message: "File type not supported. Please upload a valid file (image, pdf, doc and txt)"})
+        }
         // we need to upload and store the new file in the 
         // psql database as well as in cloudinary
         // to do that, i need to fetch the parent folder's path 
@@ -93,10 +98,11 @@ const fileInterface = {
         // cloudinary by converting it to base64 (since cloudinary only uses string or file paths for upload)
         const base64EncodedImage = Buffer.from(req.file.buffer).toString("base64");
         const dataUri = `data:${req.file.mimetype};base64,${base64EncodedImage}`;
+        const isText = mimetype.includes('text');
         
         // now we upload it to cloudinary, the response received will contain
         // the uploaded file's path, which we can use to display in the front-end
-        const uploadedFile = await CloudinaryInterface.uploadFileCloudinary(newFolderPath, dataUri, parentFolderId, next);
+        const uploadedFile = await CloudinaryInterface.uploadFileCloudinary(newFolderPath, dataUri, isText);
         
         if (!uploadedFile){
             return res.status(500).json({message: "File Upload Failed!"})

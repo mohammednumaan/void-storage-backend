@@ -13,13 +13,14 @@ const upload = multer({storage})
 const router = express.Router();
 
 // a simple rotuer level middleware to check if the request is authorized
-router.use(async (req, res, next) => {
-    if (!req?.user?.id){
-        return res.status(401).json({message: "Unauthorized user."})
-    } else{
-        next();
-    }
-})  
+// router.use(async (req, res, next) => {
+    
+//     if (!req?.user?.id && !req.path.includes('/public')){
+//         return res.status(401).json({message: "Unauthorized user."})
+//     } else{
+//         next();
+//     }
+// })  
 /* 
 FILE ROUTES ARE DEFINED BELOW. THESE INCLUDE:
     - Retrieving File Routes
