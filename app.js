@@ -52,8 +52,6 @@ app.use(
       maxAge: 2 * 24 * 60 * 60 * 1000,
       sameSite: 'none',
       secure: true,
-      domain: 'void-storage-frontend.vercel.app',
-      path: '/',
       partitioned: true
     },  
     secret: process.env.SESSION_SECRET,
