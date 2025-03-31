@@ -48,6 +48,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(
   expressSession({
     cookie: {
+      httpOnly: false,
       maxAge: 2 * 24 * 60 * 60 * 1000,
       sameSite: 'none',
       secure: true,
