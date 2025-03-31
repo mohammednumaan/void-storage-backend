@@ -31,7 +31,7 @@ const limiter = RateLimit({
 app.use(limiter);
 app.use(helmet());
 app.use(compression());
-app.use(cors({origin: true, credentials: true}));
+app.use(cors({origin: 'https://void-storage-frontend.vercel.app', credentials: true}));
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
