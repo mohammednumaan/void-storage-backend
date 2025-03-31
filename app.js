@@ -49,7 +49,8 @@ app.use(
     cookie: {
       maxAge: 2 * 24 * 60 * 60 * 1000,
       sameSite:'none',
-      secure: true
+      secure: true,
+      domain: 'void-storage-frontend.vercel.app'
     },
     secret: process.env.SESSION_SECRET,
     resave: false,
