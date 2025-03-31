@@ -51,7 +51,7 @@ app.use(
       httpOnly: false,
       maxAge: 2 * 24 * 60 * 60 * 1000,
       sameSite: 'none',
-      secure: 'auto'
+      secure: true
     },  
     secret: process.env.SESSION_SECRET,
     resave: false,
