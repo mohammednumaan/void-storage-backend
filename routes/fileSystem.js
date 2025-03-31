@@ -3,24 +3,52 @@ const express = require('express');
 const folderInterface = require('../controllers/folderController');
 const multer = require("multer");
 const fileInterface = require('../controllers/fileController');
+const prisma = require("../prisma");
+const asyncHandler = require('express-async-handler');
 
 // configuring multer to use in-memory storage
 // this is because, we want to store files temporarily instead
 // of saving them in the server's disk
 const storage = multer.memoryStorage();
 const upload = multer({storage}) 
-
 const router = express.Router();
 
-// a simple rotuer level middleware to check if the request is authorized
-// router.use(async (req, res, next) => {
-    
-//     if (!req?.user?.id && !req.path.includes('/public')){
-//         return res.status(401).json({message: "Unauthorized user."})
-//     } else{
-//         next();
-//     }
-// })  
+// a simple router level middleware to auto delete expired links
+// (this is just a temporary solution, a better one would be to use cron-jobs)
+router.use(asyncHandler(async (req, res, next) => {
+    const nowDate = new Date();
+    const folderLinks = await prisma.folderLinks.findMany({
+        where: {
+            expiresAt: {lte: nowDate}
+        }
+    });
+
+    if (folderLinks){
+        await prisma.folderLinks.deleteMany({
+            where: {
+                expiresAt: {lte: nowDate}
+            }
+        });
+        console.log("Removed Expired Folder Links...");
+    }
+
+    const fileLinks = await prisma.fileLinks.findMany({
+        where: {
+            expiresAt: {lte: nowDate}
+        }
+    });
+
+    if (fileLinks){
+        await prisma.fileLinks.deleteMany({
+            where: {
+                expiresAt: {lte: nowDate}
+            }
+        });
+        console.log("Removed Expired Folder Links...");
+    }
+    next();
+}))
+
 /* 
 FILE ROUTES ARE DEFINED BELOW. THESE INCLUDE:
     - Retrieving File Routes

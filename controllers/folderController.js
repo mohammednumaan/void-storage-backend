@@ -22,6 +22,9 @@ const folderInterface = {
 
     // this method, fetches the root folder of the active user
     getRootFolder: asyncHandler(async (req, res, next) => {
+        if (!req?.user?.id){
+            return res.status(401).json({message: "Unauthorized user."})
+        }
         const rootFolder = await prisma.folder.findFirst({where: {
             AND: [
                 {folderName: 'root'},
@@ -35,6 +38,7 @@ const folderInterface = {
     // this method, constructs a requested folder's full path which will be
     // used for breadcrumb navigation in the front-end
     getFolderPathSegments: asyncHandler(async (req, res, next) => {
+        
         const {parentFolder, folderId} = req.params;
         const currentFolder = await prisma.folder.findUnique({
             where: {id: folderId}
@@ -56,6 +60,9 @@ const folderInterface = {
     // this method, creates a new folder
     createFolder: asyncHandler(async (req, res, next) => {
 
+        if (!req?.user?.id){
+            return res.status(401).json({message: "Unauthorized user."})
+        }
         // i need to store the file meta-data in the psql database
         // and store the actual file in cloudinary in the right path
         // this path can be determined from the meta-data i stored in the psql database
@@ -66,11 +73,6 @@ const folderInterface = {
             id: parentFolderId,
             userId: req.user.id
         }});
-
-        const folderExists = await prisma.folder.findFirst({where: {
-            folderName: newFolderName,
-            parentFolder: parentFolderId
-        }})
 
         // now, we need to dynamically generate the folderPath (IMPORTANT)
         // this path determines the location of the asset in cloudinary
@@ -97,6 +99,9 @@ const folderInterface = {
 
     // this method, renames the requested folder
     editFolder: asyncHandler(async (req, res, next) => {
+        if (!req?.user?.id){
+            return res.status(401).json({message: "Unauthorized user."})
+        }
 
         const {folderId, newFolderName} = req.body;
 
@@ -133,6 +138,9 @@ const folderInterface = {
 
     // this method, deletes the requested folder along with its sub-folders and files
     deleteFolder: asyncHandler(async (req, res, next) => {
+        if (!req?.user?.id){
+            return res.status(401).json({message: "Unauthorized user."})
+        }
         // get the folder we are going to delete
         const folder = await prisma.folder.findUnique({where: {id: req.body.folderId}});
 
@@ -161,6 +169,9 @@ const folderInterface = {
     }),
 
     moveFolder: asyncHandler(async (req, res, next) => {
+        if (!req?.user?.id){
+            return res.status(401).json({message: "Unauthorized user."})
+        }
 
         // extract the selected folder and the folder to move from the request
         const {selectedFolderId, moveData} = req.body;
@@ -195,6 +206,9 @@ const folderInterface = {
     }),
 
     shareFolder: asyncHandler(async (req, res, next) => {
+        if (!req?.user?.id){
+            return res.status(401).json({message: "Unauthorized user."})
+        }
         const { resourceId, duration, unit } = req.body;
         console.log(req.body)
         const selectedFolder = await prisma.folder.findUnique({where: {id: resourceId}});
@@ -227,7 +241,7 @@ const folderInterface = {
         const folderLink = await prisma.folderLinks.findUnique({
             where: {id: linkId}
         });
-        if (!folderLink) return res.status(404).json({message: "The requested resource could not be found."});
+        if (!folderLink) return res.status(404).json({message: "The requested resource could not be found, please request the owner to share a new link."});
         
         const nowDate = new Date();
 

@@ -6,6 +6,8 @@ const cookieParser = require('cookie-parser');
 const logger = require('morgan');
 const passport = require("passport");
 const cors = require("cors");
+const compression = require("compression");
+const { default: helmet } = require('helmet');
 
 const expressSession = require('express-session');
 const { PrismaSessionStore } = require('@quixo3/prisma-session-store');
@@ -20,6 +22,15 @@ const { PrismaClient } = require('@prisma/client');
 require('dotenv').config()
 
 const app = express();
+const RateLimit = require("express-rate-limit");
+const limiter = RateLimit({
+  windowMs: 1 * 60 * 1000, 
+  max: 50,
+});
+
+app.use(limiter);
+app.use(helmet());
+app.use(compression());
 app.use(cors({origin: true, credentials: true}));
 
 // view engine setup
@@ -36,7 +47,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(
   expressSession({
     cookie: {
-      maxAge: 7 * 24 * 60 * 60 * 1000
+      maxAge: 2 * 24 * 60 * 60 * 1000
     },
     secret: process.env.SESSION_SECRET,
     resave: false,

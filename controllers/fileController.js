@@ -3,7 +3,6 @@ const CloudinaryInterface = require('../cloudinary/cloudinary');
 const asyncHandler = require("express-async-handler");
 const { constructPathString } = require('../utils/constructPath');
 const { validateInput, getValidationErrors } = require('../utils/validateInput');
-const { Readble } = require("stream")
 const prisma = require('../prisma');
 
 const fileInterface = {
@@ -53,7 +52,9 @@ const fileInterface = {
     // this method, uploads the given file to cloudinary and store 
     // its meta-data in the psql database
     uploadFile: asyncHandler(async (req, res, next) => {
-
+        if (!req?.user?.id){
+            return res.status(401).json({message: "Unauthorized user."})
+        }
         // extract the parentFolderId from the request body
         // this is the folderId in which the file is getting uploaded
         const {parentFolderId} = req.body;
@@ -93,12 +94,11 @@ const fileInterface = {
 
         // now, we need to construct the file path dynamically
         let newFolderPath = await constructPathString(parentFolder, req.user.id);
-
         // since we have a file that is stored as a buffer, we need to upload it to
         // cloudinary by converting it to base64 (since cloudinary only uses string or file paths for upload)
         const base64EncodedImage = Buffer.from(req.file.buffer).toString("base64");
         const dataUri = `data:${req.file.mimetype};base64,${base64EncodedImage}`;
-        const isText = mimetype.includes('text');
+        const isText = mimetype.includes('text') || mimetype.includes("pdf");
         
         // now we upload it to cloudinary, the response received will contain
         // the uploaded file's path, which we can use to display in the front-end
@@ -126,7 +126,9 @@ const fileInterface = {
 
     // this method, edits/renames a file
     editFile: asyncHandler(async (req, res, next) => {
-
+        if (!req?.user?.id){
+            return res.status(401).json({message: "Unauthorized user."})
+        }
         const {folderId, fileId, newFileName} = req.body;
 
         // retrieve the requested file to edit from the database
@@ -155,7 +157,9 @@ const fileInterface = {
 
     // this method, deletes a file
     deleteFile: asyncHandler(async (req, res, next) => {
-        
+        if (!req?.user?.id){
+            return res.status(401).json({message: "Unauthorized user."})
+        }
         const {fileId} = req.body;
         
         // checks if the file exists in the database. if not, we notify the client
@@ -186,7 +190,9 @@ const fileInterface = {
 
     // this method, moves a file from one folder to another
     moveFile: asyncHandler(async (req, res, next) => {
-        
+        if (!req?.user?.id){
+            return res.status(401).json({message: "Unauthorized user."})
+        }
         const {selectedFolderId, moveData} = req.body;
 
         // check if the given file to move and the selectedfolder exists in the database
@@ -252,6 +258,11 @@ const fileInterface = {
     }),
 
     shareFile: asyncHandler(async (req, res, next) => {
+
+        if (!req?.user?.id){
+            return res.status(401).json({message: "Unauthorized user."})
+        }
+
         const { resourceId, duration, unit } = req.body;
         const selectedFile = await prisma.file.findUnique({where: {id: resourceId}});
 
@@ -283,10 +294,9 @@ const fileInterface = {
         const fileLink = await prisma.fileLinks.findUnique({
             where: {id: linkId}
         });
-        if (!fileLink) return res.status(404).json({message: "The requested resource could not be found."});
+        if (!fileLink) return res.status(404).json({message: "The requested resource could not be found, please request the owner to share a new link."});
         
         const nowDate = new Date();
-
         if (nowDate > fileLink.expiresAt) return res.status(400).json({message: "The generated link has expired, please request the owner to share a new link."})
 
         const file = await prisma.file.findUnique({

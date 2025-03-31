@@ -5,9 +5,7 @@ const asyncHandler = require("express-async-handler");
 const bcrypt = require("bcryptjs");
 const passport = require("passport");
 const CloudinaryInterface = require("../cloudinary/cloudinary");
-
-// initialize prisma client to query and modify the database
-const prisma = new PrismaClient();
+const prisma = require("../prisma")
 
 // a list of middlewares to handle a 'register' post request 
 exports.register_post = [
@@ -118,6 +116,9 @@ exports.post_username = [
         .escape(),
 
     asyncHandler(async (req, res, next) => {
+        if (!req?.user?.id){
+            return res.status(401).json({message: "Unauthorized user."})
+        }
         const {username} = req.body;
         const errors = validationResult(req);
         if (!errors.isEmpty()){
@@ -147,6 +148,9 @@ exports.delete_account = [
     body("password").trim().notEmpty().withMessage("Password must not be empty.").escape(),
 
     asyncHandler(async (req, res, next) => {
+        if (!req?.user?.id){
+            return res.status(401).json({message: "Unauthorized user."})
+        }
         const errors = validationResult(req);
         if (!errors.isEmpty()){
             return res.status(400).json({errors: errors.array()});
@@ -196,7 +200,6 @@ exports.delete_account = [
 
             }
         })
-        console.log('hi')
         return res.json({message: "User Deleted Successfully!"})
     })
 ]
