@@ -54,6 +54,7 @@ app.use(
       secure: true,
       domain: 'void-storage-frontend.vercel.app',
       path: '/',
+      partitioned: true
     },  
     secret: process.env.SESSION_SECRET,
     resave: false,
