@@ -47,7 +47,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(
   expressSession({
     cookie: {
-      maxAge: 2 * 24 * 60 * 60 * 1000
+      maxAge: 2 * 24 * 60 * 60 * 1000,
+      sameSite:'none'
     },
     secret: process.env.SESSION_SECRET,
     resave: false,
@@ -56,8 +57,8 @@ app.use(
       checkPeriod: 2 * 60 * 1000,
       dbRecordIdIsSessionId: true,
       dbRecordIdFunction: undefined,
-    })
-  })
+    }),
+  }),
 )
 
 // basic middleware setup
