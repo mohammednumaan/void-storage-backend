@@ -43,7 +43,7 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
-
+app.set("trust proxy",1);
 // basic session configuration
 app.use(
   expressSession({
@@ -51,7 +51,7 @@ app.use(
       httpOnly: false,
       maxAge: 2 * 24 * 60 * 60 * 1000,
       sameSite: 'none',
-      secure: true
+      secure: true,
     },  
     secret: process.env.SESSION_SECRET,
     resave: false,
