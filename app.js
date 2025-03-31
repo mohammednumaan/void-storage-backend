@@ -43,13 +43,14 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
+
 // basic session configuration
 app.use(
   expressSession({
     cookie: {
       maxAge: 2 * 24 * 60 * 60 * 1000,
-      // sameSite: 'none',
-      
+      sameSite: 'none',
+
       // secure: true,
     },
     secret: process.env.SESSION_SECRET,
