@@ -52,7 +52,8 @@ app.use(
       maxAge: 2 * 24 * 60 * 60 * 1000,
       sameSite: 'none',
       secure: true,
-    },
+      path: 'https://void-storage-frontend.vercel.app'
+    },  
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
