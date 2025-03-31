@@ -116,7 +116,7 @@ const fileInterface = {
                 fileSize: req.file.size,
                 createdAt: new Date(),
                 folder: {connect: {id: folder.id}},
-                fileUrl: uploadedFile.url
+                fileUrl: uploadedFile.secure_url
             }
         })
 
