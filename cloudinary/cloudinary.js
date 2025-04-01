@@ -68,7 +68,7 @@ class CloudinaryInterface{
 
     static async uploadFileCloudinary(folderPath, dataUri, isText){
         try{        
-            const uploadedFile = await cloudinary.uploader.upload(dataUri, {asset_folder: folderPath, use_asset_folder_as_public_id_prefix: true, resource_type: isText ? 'raw' : ''})
+            const uploadedFile = await cloudinary.uploader.upload(dataUri, {asset_folder: folderPath, use_asset_folder_as_public_id_prefix: true, resource_type: isText ? 'raw' : 'upload'})
             return uploadedFile;
         } catch(error){
             console.log(error)
