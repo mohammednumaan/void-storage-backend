@@ -98,7 +98,7 @@ const fileInterface = {
         // cloudinary by converting it to base64 (since cloudinary only uses string or file paths for upload)
         const base64EncodedImage = Buffer.from(req.file.buffer).toString("base64");
         const dataUri = `data:${req.file.mimetype};base64,${base64EncodedImage}`;
-        const isText = mimetype.includes('text') || mimetype.includes("pdf");
+        const isText = mimetype.includes('text');
         
         // now we upload it to cloudinary, the response received will contain
         // the uploaded file's path, which we can use to display in the front-end
