@@ -26,7 +26,9 @@ const app = express();
 const RateLimit = require("express-rate-limit");
 const limiter = RateLimit({
   windowMs: 1 * 60 * 1000, 
-  max: 50,
+  max: process.env.NODE_ENV === 'production' ? 100 : 200,
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 
 const allowedOrigins = [
@@ -34,9 +36,6 @@ const allowedOrigins = [
   'http://localhost:5173',
 ].filter(Boolean);
 
-app.use(limiter);
-app.use(helmet());
-app.use(compression());
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin || allowedOrigins.includes(origin)) {
@@ -48,6 +47,9 @@ app.use(cors({
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
 }));
+app.use(limiter);
+app.use(helmet());
+app.use(compression());
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
