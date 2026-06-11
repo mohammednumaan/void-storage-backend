@@ -5,25 +5,21 @@ const { constructFolderPath, constructPathString } = require('../utils/construct
 const { validateInput, getValidationErrors } = require('../utils/validateInput');
 const prisma = require('../prisma');
 
-// an object that acts as interface to perform folder related operations
 const folderInterface = {
 
-    // this method, fetches all sub-folders of the requested folder
-    getFolders: asyncHandler(async (req, res, nex) => {
+    getFolders: asyncHandler(async (req, res) => {
         const {parentFolderId} = req.params;
         const allSubFolders = await prisma.folder.findMany({where: {
             AND: [
                 {parentFolder: parentFolderId},
-                // {user: {id: req.user.id}}
             ]
         }});
-        res.json({message: "All Folders Retrieved Successfully!", folders: allSubFolders});
+        return res.success({ folders: allSubFolders }, 'All folders retrieved successfully.');
     }),
 
-    // this method, fetches the root folder of the active user
-    getRootFolder: asyncHandler(async (req, res, next) => {
+    getRootFolder: asyncHandler(async (req, res) => {
         if (!req?.user?.id){
-            return res.status(401).json({message: "Unauthorized user."})
+            return res.fail('Unauthorized user.', 401);
         }
         const rootFolder = await prisma.folder.findFirst({where: {
             AND: [
@@ -31,41 +27,30 @@ const folderInterface = {
                 {user: {id: req.user.id}}
             ]
         }});
-        return res.json({message: "Root Folder Retrieved Successfully!", rootFolderId: rootFolder.id});
+        if (!rootFolder) return res.fail('Root folder not found.', 404);
+        return res.success({ rootFolderId: rootFolder.id }, 'Root folder retrieved successfully.');
     }),
 
-
-    // this method, constructs a requested folder's full path which will be
-    // used for breadcrumb navigation in the front-end
-    getFolderPathSegments: asyncHandler(async (req, res, next) => {
-        
+    getFolderPathSegments: asyncHandler(async (req, res) => {
         const {parentFolder, folderId} = req.params;
         const currentFolder = await prisma.folder.findUnique({
             where: {id: folderId}
         })
 
-        
-        if (!currentFolder) return res.status(404).json({message: "Folder Not Found!"});
+        if (!currentFolder) return res.fail('Folder not found.', 404);
         const folderPath = await constructFolderPath(currentFolder, parentFolder, parentFolder ? false : true);
-        return res.json({message: "Folder Path Segments Constructed Successfully!", folderSegments: folderPath})
-        
+        return res.success({ folderSegments: folderPath }, 'Folder path segments constructed successfully.');
     }),
 
-    // this method, validates the input fields while creating/editing a folder
     validateFolder: [
         validateInput("folder", "newFolderName"),
         getValidationErrors,
     ],  
 
-    // this method, creates a new folder
     createFolder: asyncHandler(async (req, res, next) => {
-
         if (!req?.user?.id){
-            return res.status(401).json({message: "Unauthorized user."})
+            return res.fail('Unauthorized user.', 401);
         }
-        // i need to store the file meta-data in the psql database
-        // and store the actual file in cloudinary in the right path
-        // this path can be determined from the meta-data i stored in the psql database
         let {parentFolderId, newFolderName} = req.body;
         newFolderName = newFolderName.trim();
         
@@ -74,16 +59,13 @@ const folderInterface = {
             userId: req.user.id
         }});
 
-        // now, we need to dynamically generate the folderPath (IMPORTANT)
-        // this path determines the location of the asset in cloudinary
         let newFolderPath = await constructPathString(parentFolder, req.user.id);
 
         const cloudinaryResponse = await CloudinaryInterface.createFolderCloudinary(newFolderPath, newFolderName, next);
         if (!cloudinaryResponse){
-            return res.status(500).json({message: "An error occurred while creating this file."})
+            return res.fail('An error occurred while creating this folder.', 500);
         }
 
-        // now, we can safely store the meta-data in the database
         const newFolder = await prisma.folder.create({
             data: {
                 folderName: newFolderName,
@@ -91,40 +73,31 @@ const folderInterface = {
                 createdAt: new Date(),
                 files: {},
                 user: {connect: {id: req.user.id}},
-
             }
         })
-        return res.json({message: "Folder Created Successfully!", createdFolder: newFolder});
+        return res.success({ createdFolder: newFolder }, 'Folder created successfully.');
     }),
 
-    // this method, renames the requested folder
-    editFolder: asyncHandler(async (req, res, next) => {
+    editFolder: asyncHandler(async (req, res) => {
         if (!req?.user?.id){
-            return res.status(401).json({message: "Unauthorized user."})
+            return res.fail('Unauthorized user.', 401);
         }
 
         const {folderId, newFolderName} = req.body;
-
-        // get the folder we are going to rename/edit
         const folder = await prisma.folder.findUnique({where: {id: folderId}});
 
-        // check if the folder if we tried to get exists. if it doesn't
-        // notify the client that the folder doesn't exist
-        if (!folder) return res.status(404).json({error: "The folder which you are trying to edit cannot be found!"});
+        if (!folder) return res.fail('The folder which you are trying to edit cannot be found.', 404);
 
-        // dynamically constructing the folder path
         const oldFolderPath = await constructPathString(folder, req.user.id);
         let oldFolderPathArr = oldFolderPath.split('/');
 
         oldFolderPathArr[oldFolderPathArr.length - 2] = newFolderName;
         let newFolderPath = oldFolderPathArr.join('/')
-        // we now update/rename the folder name in cloudinary
         const cloudinaryResponse = await CloudinaryInterface.renameFolderCloudinary(oldFolderPath.substring(1), newFolderPath.substring(1, newFolderPath.length - 1), folder.id);
 
         if (!cloudinaryResponse){
-            return res.status(500).json({message: "An error occured while editing this folder."})
+            return res.fail('An error occurred while editing this folder.', 500);
         }
-        // we can now safely update the meta-data in the database
         const renamedFolder = await prisma.folder.update({
             where: {
                 id: folderId
@@ -133,68 +106,54 @@ const folderInterface = {
                 folderName: newFolderName
             }
         })
-        return res.json({message: "Folder Renamed Successfully!", renamedFolder})
+        return res.success({ renamedFolder }, 'Folder renamed successfully.');
     }),
 
-    // this method, deletes the requested folder along with its sub-folders and files
     deleteFolder: asyncHandler(async (req, res, next) => {
         if (!req?.user?.id){
-            return res.status(401).json({message: "Unauthorized user."})
+            return res.fail('Unauthorized user.', 401);
         }
-        // get the folder we are going to delete
         const folder = await prisma.folder.findUnique({where: {id: req.body.folderId}});
 
-        // check if the folder if we tried to get exists. if it doesn't
-        // notify the client that the folder doesn't exist
-        if (!folder) return res.status(404).json({error: "Folder Not Found!"});
+        if (!folder) return res.fail('Folder not found.', 404);
 
-        // here, i dynamically construct the path of the folder
         let newFolderPath = await constructPathString(folder, req.user.id);
-        // here, we delete the folder from cloudinary
         const cloudinaryResponse = await CloudinaryInterface.deleteFolderCloudinary(newFolderPath, newFolderPath.substring(1), next); 
         if (!cloudinaryResponse?.deleted || cloudinaryResponse.deleted.length === 0){
-            return res.status(500).json({message: "Failed To Delete Folder!"})
+            return res.fail('Failed to delete folder.', 500);
         }
-        // now, we can safely delete the folder from the database
         await prisma.folder.delete({
             where: {
                 id: folder.id         
-
             },
             include: {
                 files: true,
             }
         })
-        res.status(204).json({message: "Folder Deleted Successfully!", deletedFolder: cloudinaryResponse.deleted})
+        return res.success({ deletedFolder: cloudinaryResponse.deleted }, 'Folder deleted successfully.');
     }),
 
-    moveFolder: asyncHandler(async (req, res, next) => {
+    moveFolder: asyncHandler(async (req, res) => {
         if (!req?.user?.id){
-            return res.status(401).json({message: "Unauthorized user."})
+            return res.fail('Unauthorized user.', 401);
         }
 
-        // extract the selected folder and the folder to move from the request
         const {selectedFolderId, moveData} = req.body;
-
-        // check if the given folder to move and the selected folder exists in the database
         const selectedFolder = await prisma.folder.findUnique({where: {id: selectedFolderId}});
         const folderToMove = await prisma.folder.findUnique({where: {id: moveData}});
 
-        // if they don't exist, we notify the client    
-        if (!selectedFolder) return res.status(404).json({message: "The selected directory to move the folder could not be found."});
-        if (!folderToMove) return res.status(404).json({message: "The selected folder to move could not be found."});
+        if (!selectedFolder) return res.fail('The selected directory to move the folder could not be found.', 404);
+        if (!folderToMove) return res.fail('The selected folder to move could not be found.', 404);
 
-        // now, we can safely construct the folder's path dynamically
         let oldFolderPath = await constructPathString(folderToMove, req.user.id);
         let newFolderPath = await constructPathString(selectedFolder, req.user.id);
         newFolderPath += `${folderToMove.folderName}`
 
         const cloudinaryResponse = await CloudinaryInterface.renameFolderCloudinary(oldFolderPath.substring(1), newFolderPath.substring(1), folderToMove.id);
         if (!cloudinaryResponse){
-            return res.status(500).json({message: "An Error Occured Moving The Folder!"});
+            return res.fail('An error occurred moving the folder.', 500);
         }
 
-        // finally, we can safely update the meta-data in the database
         const movedFolder = await prisma.folder.update({
             where: {id: folderToMove.id},
             data: {
@@ -202,19 +161,18 @@ const folderInterface = {
             }
         })
 
-        return res.json({message: "Folder Moved Successfully!", movedFolder})
+        return res.success({ movedFolder }, 'Folder moved successfully.');
     }),
 
-    shareFolder: asyncHandler(async (req, res, next) => {
+    shareFolder: asyncHandler(async (req, res) => {
         if (!req?.user?.id){
-            return res.status(401).json({message: "Unauthorized user."})
+            return res.fail('Unauthorized user.', 401);
         }
         const { resourceId, duration, unit } = req.body;
-        console.log(req.body)
         const selectedFolder = await prisma.folder.findUnique({where: {id: resourceId}});
 
-        if (!duration) return res.status(400).json({message: "Expiry duration needs to be specified."});
-        if (!selectedFolder) return res.status(404).json({message: "The selected directory could not be found."});
+        if (!duration) return res.fail('Expiry duration needs to be specified.', 400);
+        if (!selectedFolder) return res.fail('The selected directory could not be found.', 404);
 
         const nowDate = new Date();
         const expiryDate = unit === "hours" ?
@@ -228,34 +186,36 @@ const folderInterface = {
         })
 
         const folderLinkId = `view/public/folder/${newFolderLink.id}`;
-        return res.json({message: "Link generated successfully.", link: folderLinkId });
-
+        return res.success({ link: folderLinkId }, 'Link generated successfully.');
     }),
-    getSharedFolder: asyncHandler(async (req, res, next) => {
+
+    getSharedFolder: asyncHandler(async (req, res) => {
         const { linkId, type } = req.body;
 
         if (type.toLowerCase() !== "folder"){
-            return res.status(400).json({message: "The requested resource is not of type folder."});
+            return res.fail('The requested resource is not of type folder.', 400);
         } 
 
         const folderLink = await prisma.folderLinks.findUnique({
             where: {id: linkId}
         });
-        if (!folderLink) return res.status(404).json({message: "The requested resource could not be found, please request the owner to share a new link."});
+        if (!folderLink) return res.fail('The requested resource could not be found, please request the owner to share a new link.', 404);
         
         const nowDate = new Date();
 
-        if (nowDate > folderLink.expiresAt) return res.status(400).json({message: "The generated link has expired, please request the owner to share a new link."})
+        if (nowDate > folderLink.expiresAt) return res.fail('The generated link has expired, please request the owner to share a new link.', 400);
 
         const folder = await prisma.folder.findUnique({
             where: {id: folderLink.folderId}
         })
-        if (!folder) return res.status(404).json({message: "The requested folder could not be found."});
+        if (!folder) return res.fail('The requested folder could not be found.', 404);
 
-        return res.json({message: "Folder Information Fetched Successfully", id: folder.id, type: 'Folder', name: folder.folderName})
+        return res.success({
+            id: folder.id,
+            type: 'Folder',
+            name: folder.folderName,
+        }, 'Folder information fetched successfully.');
     })
-    
 }
 
-// exports
 module.exports = folderInterface;

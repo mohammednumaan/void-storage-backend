@@ -1,6 +1,5 @@
 // imports
 const { body, validationResult } = require("express-validator");
-const { PrismaClient } = require('@prisma/client');
 const asyncHandler = require("express-async-handler");
 const bcrypt = require("bcryptjs");
 const passport = require("passport");
@@ -31,43 +30,36 @@ exports.register_post = [
 
     asyncHandler(async (req, res, next) => {
         const errors = validationResult(req);
-        const {username, password} = req.body
-        console.log(username, password, req.body.confirm_password);
-
-        const hashedPassword = await bcrypt.hash(password, 10);
         if (!errors.isEmpty()){
-            res.json({
-                status: false,
-                errors: errors.array()
-            })
-        } 
-        
-        else{
+            return res.fail('Validation failed', 400, errors.array());
+        }
 
-            const user = await prisma.user.create({
-                data: {
-                    username: username,
-                    password_hash: hashedPassword,
-                }
-            })
-            await prisma.user.update({
-                where: {
-                    id: user.id
-                },
-                data: {
-                    folders: {
-                        create: {
-                            folderName: 'root',
-                            files: {},
-                            createdAt: new Date(),
-                        }
+        const {username, password} = req.body
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        const user = await prisma.user.create({
+            data: {
+                username: username,
+                password_hash: hashedPassword,
+            }
+        })
+        await prisma.user.update({
+            where: {
+                id: user.id
+            },
+            data: {
+                folders: {
+                    create: {
+                        folderName: 'root',
+                        files: {},
+                        createdAt: new Date(),
                     }
                 }
-            })
+            }
+        })
 
-            await CloudinaryInterface.createFolderCloudinary('', `root-${user.id}`, next)
-            res.json({status: true});
-        }
+        await CloudinaryInterface.createFolderCloudinary('', `root-${user.id}`, next)
+        return res.success(null, 'Registered successfully');
     })
 ]
 
@@ -80,7 +72,7 @@ exports.login_post = [
     (req, res, next) => {
         const errors = validationResult(req);
         if (!errors.isEmpty()){
-            return res.json({status: false, errors: errors.array()});
+            return res.fail('Validation failed', 400, errors.array());
         }
         next();
     },
@@ -88,22 +80,21 @@ exports.login_post = [
     (req, res, next) => {
         passport.authenticate('local', (err, user, info) => {
             if (err) return next(err);
-            if (!user) return res.json({status: false, message: info.message});
+            if (!user) return res.fail(info?.message || 'Invalid Username Or Password.', 401);
             req.login(user, next);
         })(req, res, next)
     },
 
     (req, res) => {
-        return res.json({status: true, user: req.user.username});
+        return res.success({ username: req.user.username }, 'Logged in successfully');
     }
 ]
 
 exports.logout_post = (req, res, next) => {
     req.logout((err) => {
-        if (err) return res.status(500).json({message: 'Failed To Logout.'})
-    })
-
-    return res.json({message: "Logged Out Successfully."})
+        if (err) return res.fail('Failed to logout', 500);
+        return res.success(null, 'Logged out successfully');
+    });
 }
 
 exports.post_username = [
@@ -117,20 +108,19 @@ exports.post_username = [
 
     asyncHandler(async (req, res, next) => {
         if (!req?.user?.id){
-            return res.status(401).json({message: "Unauthorized user."})
+            return res.fail('Unauthorized user.', 401);
         }
         const {username} = req.body;
         const errors = validationResult(req);
         if (!errors.isEmpty()){
-            return res.json({errors: errors.array()});
+            return res.fail('Validation failed', 400, errors.array());
         }
 
         const user = await prisma.user.findUnique({
             where: {id: req.user.id}
         });
 
-        if (!user) return res.status(404).json({message: "User could not be found."})
-        
+        if (!user) return res.fail('User could not be found.', 404);
 
         const updatedUser = await prisma.user.update({
             where: {id: user.id},
@@ -139,7 +129,7 @@ exports.post_username = [
             }
         });
 
-        return res.json({message: "Username updated successfully.", username: updatedUser.username})
+        return res.success({ username: updatedUser.username }, 'Username updated successfully.');
 
     })
 ]
@@ -149,41 +139,39 @@ exports.delete_account = [
 
     asyncHandler(async (req, res, next) => {
         if (!req?.user?.id){
-            return res.status(401).json({message: "Unauthorized user."})
+            return res.fail('Unauthorized user.', 401);
         }
         const errors = validationResult(req);
         if (!errors.isEmpty()){
-            return res.status(400).json({errors: errors.array()});
+            return res.fail('Validation failed', 400, errors.array());
         }
 
         const userId = req.user.id;
-        if (!userId) return res.status(401).json({message: "Unauthorized user."});
         
         const user = await prisma.user.findUnique({
             where: {id: userId}
         })
-        if (!user) return res.status(404).json({message: "User could not be found."});
+        if (!user) return res.fail('User could not be found.', 404);
         
         const isValidPassword = await bcrypt.compare(req.body.password, user.password_hash);
-            if (!isValidPassword){
-            return res.status(400).json({message: "Incorrect password, failed to delete account."});
+        if (!isValidPassword){
+            return res.fail('Incorrect password, failed to delete account.', 400);
         }
 
         const folder = await prisma.folder.findFirst({
             where: {folderName: 'root', userId: userId}
         })
-        if (!folder) return res.status(404).json({message: "Root folder could not be found."});
+        if (!folder) return res.fail('Root folder could not be found.', 404);
 
         const folderPath = `root-${user.id}`
         const cloudinaryResponse = await CloudinaryInterface.deleteFolderCloudinary(folderPath, folderPath);
         if (!cloudinaryResponse?.deleted || cloudinaryResponse.deleted.length === 0){
-            return res.status(500).json({message: "Failed To Delete Root Folder!"})
+            return res.fail('Failed to delete root folder.', 500);
         }
-        // now, we can safely delete the root folder and user from the database
+
         await prisma.folder.delete({
             where: {
                 id: folder.id         
-
             },
             include: {
                 files: true,
@@ -193,19 +181,19 @@ exports.delete_account = [
         await prisma.user.delete({
             where: {
                 id: user.id         
-
             },
             include: {
                 folders: true,
-
             }
         })
-        return res.json({message: "User Deleted Successfully!"})
+        return res.success(null, 'User deleted successfully.');
     })
 ]
 
-// a middleware to handle an 'authenticate' get request
-exports.authenticate_get = (req, res, next) => {
+exports.authenticate_get = (req, res) => {
     const authenticated = req.isAuthenticated();
-    res.json({authenticated, username: authenticated ? req.user.username : null})
+    return res.success({
+        authenticated,
+        username: authenticated ? req.user.username : null,
+    }, authenticated ? 'Authenticated' : 'Not authenticated');
 }

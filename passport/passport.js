@@ -16,7 +16,7 @@ const verifyCallback = async (username, password, done) => {
             return done(null, false, {message: "Invalid Username Or Password."});
         }
 
-        const isValidPassword = bcrypt.compare(password, user.password_hash);
+        const isValidPassword = await bcrypt.compare(password, user.password_hash);
         return !isValidPassword ? done(null, false, {message: "Invalid Username Or Password."}) : done(null, user);
 
     } catch (err){

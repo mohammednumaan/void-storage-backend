@@ -7,69 +7,47 @@ const prisma = require('../prisma');
 
 const fileInterface = {
 
-    // this method, fetches all files within a folder
-    getFiles: asyncHandler(async (req, res, next) => {
-        let {fileId, folderId} = req.params;
+    getFiles: asyncHandler(async (req, res) => {
+        const { folderId } = req.params;
 
-        // first, we check if the folder exists in the database
         const folderExists = await prisma.folder.findFirst({where: {
-            AND: [
-                {id: {equals: folderId}}, 
-                // {user: {id: req.user.id}}
-            ]
+            id: folderId,
         }})
 
-        // if it doesn't we notify the client
-        if (!folderExists) return res.status(404).json({message: "The folder for which the files were requested cannot be found."});
+        if (!folderExists) return res.fail('The folder for which the files were requested cannot be found.', 404);
 
-        // else, we fetch all the files uploaded within that folder
         const allFiles = await prisma.file.findMany({where: {
-            AND: [
-                {id: {equals: fileId}},
-                {folderId: {equals: folderId}},
-            ]
+            folderId: folderId,
         }})
 
-        res.json({message: "Files Retrieved Successfully!", allFiles})
+        return res.success({ allFiles }, 'Files retrieved successfully.');
     }),
 
-    // this method,fetches a single file
-    getSpecificFile: asyncHandler(async (req, res, next) => {
-        let {fileId} = req.params;
+    getSpecificFile: asyncHandler(async (req, res) => {
+        const {fileId} = req.params;
 
         const file = await prisma.file.findUnique({where: {id: fileId}});
-        if (!file) return res.status(404).json({message: "The requested file cannot be found."});
-        return res.json({message: "File retrieved successfully!", file})
+        if (!file) return res.fail('The requested file cannot be found.', 404);
+        return res.success({ file }, 'File retrieved successfully.');
     }),
 
-
-    // this method, validates the input fields while editing/renaming a file
     validateFile: [
         validateInput("file", "newFileName"),
         getValidationErrors,
     ],
 
-    // this method, uploads the given file to cloudinary and store 
-    // its meta-data in the psql database
-    uploadFile: asyncHandler(async (req, res, next) => {
+    uploadFile: asyncHandler(async (req, res) => {
         if (!req?.user?.id){
-            return res.status(401).json({message: "Unauthorized user."})
+            return res.fail('Unauthorized user.', 401);
         }
-        // extract the parentFolderId from the request body
-        // this is the folderId in which the file is getting uploaded
         const {parentFolderId} = req.body;
 
-        // check if the given folder exists in the database
         const folder = await prisma.folder.findFirst({where: {AND: [
             {userId: req.user.id}, {id: parentFolderId}
         ]}})
         
-        // if it doesn't, notify the client 
-        if (!folder) return res.status(404).json({message: "The selected folder for uploading this file could not be found."});
+        if (!folder) return res.fail('The selected folder for uploading this file could not be found.', 404);
 
-        // else, we upload the new file to cloudinary as
-        // well as store meta-data about it in out psql database
-        // but first, we need to check if a file with the same name exists
         const file = await prisma.file.findFirst({where: 
             {AND: [
                     {fileName: {equals: req.file.originalname}},
@@ -77,38 +55,28 @@ const fileInterface = {
             ]}
         })
 
-
-        if (file) return res.status(409).json({message: "The folder already contains a file with the same name. Please rename the file."});
+        if (file) return res.fail('The folder already contains a file with the same name. Please rename the file.', 409);
 
         const mimetype = req.file.mimetype;
         if (mimetype.includes('video') || mimetype.includes('openxml')){
-            return res.status(400).json({message: "File type not supported. Please upload a valid file (image, pdf, doc and txt)"})
+            return res.fail('File type not supported. Please upload a valid file (image, pdf, doc and txt).', 400);
         }
-        // we need to upload and store the new file in the 
-        // psql database as well as in cloudinary
-        // to do that, i need to fetch the parent folder's path 
+
         const parentFolder = await prisma.folder.findUnique({where: {
             id: parentFolderId,
             userId: req.user.id
         }});
 
-        // now, we need to construct the file path dynamically
         let newFolderPath = await constructPathString(parentFolder, req.user.id);
-        // since we have a file that is stored as a buffer, we need to upload it to
-        // cloudinary by converting it to base64 (since cloudinary only uses string or file paths for upload)
         const base64EncodedImage = Buffer.from(req.file.buffer).toString("base64");
         const dataUri = `data:${req.file.mimetype};base64,${base64EncodedImage}`;
         const isText = mimetype.includes('text');
         
-        // now we upload it to cloudinary, the response received will contain
-        // the uploaded file's path, which we can use to display in the front-end
         const uploadedFile = await CloudinaryInterface.uploadFileCloudinary(newFolderPath, dataUri, isText);
         
         if (!uploadedFile){
-            return res.status(500).json({message: "File Upload Failed!"})
+            return res.fail('File upload failed.', 500);
         }
-        // now, we can safely create/upload the file in the database as well
-        // as in cloudinary via the req.file object
         const newFile = await prisma.file.create({
             data: {
                 fileName: req.file.originalname,
@@ -120,28 +88,23 @@ const fileInterface = {
             }
         })
 
-        // finally, we notify the client about the successfull upload
-        return res.json({message: "File Uploaded Successfully!", uploadedFile: newFile});
+        return res.success({ uploadedFile: newFile }, 'File uploaded successfully.');
     }),
 
-    // this method, edits/renames a file
-    editFile: asyncHandler(async (req, res, next) => {
+    editFile: asyncHandler(async (req, res) => {
         if (!req?.user?.id){
-            return res.status(401).json({message: "Unauthorized user."})
+            return res.fail('Unauthorized user.', 401);
         }
         const {folderId, fileId, newFileName} = req.body;
 
-        // retrieve the requested file to edit from the database
         const file = await prisma.file.findUnique({
             where: {id: fileId}
         })
 
-        // extract the extension of the file from the filename
+        if (!file) return res.fail('The requested file cannot be found.', 404);
+
         const fileExtension = file.fileName.split('.')[file.fileName.split('.').length - 1];
         
-        // the reason we directly update the meta-data in the database and not
-        // rename the file in cloudinary is because, cloudinary generates a unique identifier
-        // for each asset, so renaming the filename in cloudinary seemed unneccesary
         const renamedFile = await prisma.file.update({
             where: {
                 id: fileId,
@@ -152,32 +115,25 @@ const fileInterface = {
             }
         })
 
-        return res.json({message: "File Renamed Successfully!", renamedFile})
+        return res.success({ renamedFile }, 'File renamed successfully.');
     }),
 
-    // this method, deletes a file
-    deleteFile: asyncHandler(async (req, res, next) => {
+    deleteFile: asyncHandler(async (req, res) => {
         if (!req?.user?.id){
-            return res.status(401).json({message: "Unauthorized user."})
+            return res.fail('Unauthorized user.', 401);
         }
         const {fileId} = req.body;
         
-        // checks if the file exists in the database. if not, we notify the client
         const file = await prisma.file.findUnique({where: {id: fileId}})
-        if (!file) return res.status(404).json({message: "The requested file to delete cannot be found."});
+        if (!file) return res.fail('The requested file to delete cannot be found.', 404);
         
-        // else, we need to delete the asset from cloudinary. To do this
-        // we can extract the public_id from the image URL, this will be then fed
-        // to the delete function to delete the file
         const publicId = file.fileUrl.split('/');
         const imageName = publicId.pop().split('.')[0];
         const finalImageId = (publicId.slice(7).join('/') + '/' + imageName).replaceAll("%20", " ");
                 
-        // deleting the asset from cloudinary and from the psql database
         const cloudinaryResponse = await CloudinaryInterface.deleteFileCloudinary(finalImageId);
         if (cloudinaryResponse.result !== 'ok'){
-            console.log(cloudinaryResponse)
-            return res.status(500).json({message: "An error occured while deleting this file."});
+            return res.fail('An error occurred while deleting this file.', 500);
         }
 
         await prisma.file.delete({
@@ -185,46 +141,40 @@ const fileInterface = {
                 id: fileId     
             }
         })
-        return res.json({message: "File Deleted Successfully!"});
+        return res.success(null, 'File deleted successfully.');
     }),
 
-    // this method, moves a file from one folder to another
     moveFile: asyncHandler(async (req, res, next) => {
         if (!req?.user?.id){
-            return res.status(401).json({message: "Unauthorized user."})
+            return res.fail('Unauthorized user.', 401);
         }
         const {selectedFolderId, moveData} = req.body;
 
-        // check if the given file to move and the selectedfolder exists in the database
         const selectedFolder = await prisma.folder.findUnique({where: {id: selectedFolderId}});
         const fileToMove = await prisma.file.findUnique({where: {id: moveData}})
 
-        // checks if a file with the same name exists in the selected folder
+        if (!selectedFolder) return res.fail('The selected folder could not be found.', 404);
+        if (!fileToMove) return res.fail('The file to move could not be found.', 404);
+
         const sameFileNameExists = await prisma.file.findFirst({
             where: {
                 AND: [{folderId: selectedFolder.id}, {fileName: fileToMove.fileName}]
             }
         })
 
-        if (sameFileNameExists) return res.status(403).json({message: "A file with the same name already exists in the selected folder."})
+        if (sameFileNameExists) return res.fail('A file with the same name already exists in the selected folder.', 403);
 
-        // now, we need to construct the file path dynamically
         let newFolderPath = await constructPathString(selectedFolder, req.user.id);
 
-        // here, we need to construct a proper url/id for cloudinary to use
-        // to rename the file we are going to move
-        // here, while dealing with paths, cloudinary does not need the file-extension
-        // so, here, i extract the display name (unique) from the url and remove the file extension
         const fileURL = fileToMove.fileUrl.split('/');
         const filePublicId = fileURL.pop().split('.')[0];
         const filePath = fileURL.slice(7).join('/') + '/' +  filePublicId;
 
         const cloudinaryResponse = await CloudinaryInterface.moveFileCloudinary(filePath, newFolderPath, filePublicId, next);
         if (!cloudinaryResponse){
-            return res.status(500).json({message: "An error occured while moving this file."});
+            return res.fail('An error occurred while moving this file.', 500);
         }
 
-        // we can safely update the meta-data in psql database 
         const updatedFile = await prisma.file.update({
             where: {id: moveData},
             data: {
@@ -233,23 +183,22 @@ const fileInterface = {
             }
         })
         
-        return res.json({message: "File Moved Successfully!", movedFile: updatedFile})
+        return res.success({ movedFile: updatedFile }, 'File moved successfully.');
     }),
 
-    downloadFile: asyncHandler(async (req, res, next) => {
+    downloadFile: asyncHandler(async (req, res) => {
         const { fileId } = req.params;
         const file = await prisma.file.findUnique({
             where: {id: fileId}
         })
 
-        if (!file) return res.status(404).json({message: "File could not be found."});
+        if (!file) return res.fail('File could not be found.', 404);
 
         const imageResponse = await fetch(file.fileUrl);
         if (!imageResponse.ok){
-            return res.status(500).json({message: "Something went wrong. Could not fetch image."})
+            return res.fail('Something went wrong. Could not fetch file.', 500);
         }
 
-        
         res.setHeader('Content-Type', imageResponse.headers.get('content-type'));
         res.setHeader('Content-Disposition', `attachment;`);
 
@@ -257,17 +206,16 @@ const fileInterface = {
         res.send(Buffer.from(buffer));
     }),
 
-    shareFile: asyncHandler(async (req, res, next) => {
-
+    shareFile: asyncHandler(async (req, res) => {
         if (!req?.user?.id){
-            return res.status(401).json({message: "Unauthorized user."})
+            return res.fail('Unauthorized user.', 401);
         }
 
         const { resourceId, duration, unit } = req.body;
         const selectedFile = await prisma.file.findUnique({where: {id: resourceId}});
 
-        if (!duration) return res.status(400).json({message: "Expiry duration needs to be specified."});
-        if (!selectedFile) return res.status(404).json({message: "The selected file could not be found."});
+        if (!duration) return res.fail('Expiry duration needs to be specified.', 400);
+        if (!selectedFile) return res.fail('The selected file could not be found.', 404);
 
         const nowDate = new Date();
         const expiryDate = unit === "hours" ?
@@ -281,32 +229,35 @@ const fileInterface = {
         })
 
         const fileLinkId = `view/public/file/${newFileLink.id}`;
-        return res.json({message: "Link generated successfully.", link: fileLinkId });
-
+        return res.success({ link: fileLinkId }, 'Link generated successfully.');
     }),
-    getSharedFile: asyncHandler(async (req, res, next) => {
+
+    getSharedFile: asyncHandler(async (req, res) => {
         const { linkId, type } = req.body;
 
         if (type.toLowerCase() !== "file"){
-            return res.status(400).json({message: "The requested resource is not of type file."});
+            return res.fail('The requested resource is not of type file.', 400);
         } 
 
         const fileLink = await prisma.fileLinks.findUnique({
             where: {id: linkId}
         });
-        if (!fileLink) return res.status(404).json({message: "The requested resource could not be found, please request the owner to share a new link."});
+        if (!fileLink) return res.fail('The requested resource could not be found, please request the owner to share a new link.', 404);
         
         const nowDate = new Date();
-        if (nowDate > fileLink.expiresAt) return res.status(400).json({message: "The generated link has expired, please request the owner to share a new link."})
+        if (nowDate > fileLink.expiresAt) return res.fail('The generated link has expired, please request the owner to share a new link.', 400);
 
         const file = await prisma.file.findUnique({
             where: {id: fileLink.fileId}
         })
-        if (!file) return res.status(404).json({message: "The requested file could not be found."});
+        if (!file) return res.fail('The requested file could not be found.', 404);
 
-        return res.json({message: "File Information Fetched Successfully", id: file.id, type: 'File', fileInfo: file})
+        return res.success({
+            id: file.id,
+            type: 'File',
+            fileInfo: file,
+        }, 'File information fetched successfully.');
     })
 }
 
-// exports
 module.exports = fileInterface;

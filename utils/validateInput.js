@@ -56,7 +56,7 @@ const validateInput = (type, field) => {
 const getValidationErrors = (req, res, next) => {
     const errors = validationResult(req).array();
     if (errors.length > 0){
-        return res.status(400).json({errors: errors});
+        return res.fail('Validation failed', 400, errors);
     }
     next();
 }

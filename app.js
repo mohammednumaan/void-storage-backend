@@ -17,6 +17,7 @@ const usersRouter = require('./routes/users');
 const fileSystemRouter = require('./routes/fileSystem');
 
 const { PrismaClient } = require('@prisma/client');
+const { apiResponse, isApiRoute } = require('./utils/apiResponse');
 
 // configuring dotenv to access env variables
 require('dotenv').config()
@@ -28,10 +29,27 @@ const limiter = RateLimit({
   max: 50,
 });
 
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  process.env.CLIENT_URL,
+  'http://localhost:5173',
+  'https://void-storage-frontend.vercel.app',
+].filter(Boolean);
+
 app.use(limiter);
 app.use(helmet());
 app.use(compression());
-app.use(cors({origin: 'https://void-storage-frontend.vercel.app', credentials: true, methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],}));
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+}));
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
@@ -48,7 +66,7 @@ app.set("trust proxy",1);
 app.use(
   expressSession({
     cookie: {
-      httpOnly: false,
+      httpOnly: true,
       maxAge: 2 * 24 * 60 * 60 * 1000,
       sameSite: 'none',
       secure: true,
@@ -68,22 +86,32 @@ app.use(
 app.use(passport.session());
 require('./passport/passport');
 
+app.use(apiResponse);
+
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
 app.use('/file-system', fileSystemRouter)
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
+  if (isApiRoute(req)) {
+    return res.fail('Route not found', 404);
+  }
   next(createError(404));
 });
 
 // error handler
 app.use(function(err, req, res, next) {
-  // set locals, only providing error in development
+  if (isApiRoute(req)) {
+    return res.status(err.status || 500).json({
+      success: false,
+      message: err.message || 'Internal server error',
+      errors: err.errors || [],
+    });
+  }
+
   res.locals.message = err.message;
   res.locals.error = req.app.get('env') === 'development' ? err : {};
-
-  // render the error page
   res.status(err.status || 500);
   res.render('error');
 });
