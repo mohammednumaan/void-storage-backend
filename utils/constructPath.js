@@ -40,7 +40,7 @@ const constructFolderPath = async (folder, parent, needsRoot) => {
 
 const constructPathString = async (folder, userId) => {
     let folderPath = '';
-    let folderPathArr = await constructFolderPath(folder);
+    let folderPathArr = await constructFolderPath(folder, null, true);
 
     if (!folderPathArr.length) folderPath += `/root-${userId}/`;
     for (const segment of folderPathArr){
