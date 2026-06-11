@@ -103,8 +103,8 @@ app.use(function(err, req, res, next) {
   if (isApiRoute(req)) {
     return res.status(err.status || 500).json({
       success: false,
-      message: err.message || 'Internal server error',
-      errors: err.errors || [],
+      message: 'Something went wrong. Please try again later.',
+      errors: [],
     });
   }
 

@@ -62,7 +62,7 @@ router.get('/files/asset/download/:fileId', fileInterface.downloadFile)
 
 router.post('/files', upload.single("file"), fileInterface.uploadFile);
 
-router.delete('/files', fileInterface.deleteFile)
+router.post('/files/delete', fileInterface.deleteFile)
 router.put('/files/move', fileInterface.moveFile)
 router.put('/files', fileInterface.validateFile, fileInterface.editFile);
 router.post('/files/generate/', fileInterface.shareFile)
@@ -81,7 +81,7 @@ router.get('/folders/:parentFolderId', folderInterface.getFolders);
 router.get('/folders/segments/:folderId', folderInterface.getFolderPathSegments)
 
 router.post('/folders', folderInterface.validateFolder, folderInterface.createFolder);
-router.delete('/folders', folderInterface.deleteFolder);
+router.post('/folders/delete', folderInterface.deleteFolder);
 
 router.put('/folders', folderInterface.validateFolder, folderInterface.editFolder)
 router.put('/folders/move', folderInterface.moveFolder)

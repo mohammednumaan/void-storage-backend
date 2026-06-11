@@ -6,7 +6,9 @@
     "node": ">=v16.20.2"
   },
   "scripts": {
-    "start": "nodemon ./bin/www"
+    "start": "node ./bin/www",
+    "dev": "nodemon ./bin/www",
+    "postinstall": "npx prisma generate"
   },
   "dependencies": {
     "@fluidjs/multer-cloudinary": "^1.0.4",
