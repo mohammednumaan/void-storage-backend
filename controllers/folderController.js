@@ -32,13 +32,13 @@ const folderInterface = {
     }),
 
     getFolderPathSegments: asyncHandler(async (req, res) => {
-        const {parentFolder, folderId} = req.params;
+        const { folderId } = req.params;
         const currentFolder = await prisma.folder.findUnique({
             where: {id: folderId}
         })
 
         if (!currentFolder) return res.fail('Folder not found.', 404);
-        const folderPath = await constructFolderPath(currentFolder, parentFolder, parentFolder ? false : true);
+        const folderPath = await constructFolderPath(currentFolder, null, true);
         return res.success({ folderSegments: folderPath }, 'Folder path segments constructed successfully.');
     }),
 

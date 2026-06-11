@@ -78,7 +78,7 @@ FOLDER ROUTES ARE DEFINED BELOW. THESE INCLUDE:
 */
 router.get('/folders/root', folderInterface.getRootFolder)
 router.get('/folders/:parentFolderId', folderInterface.getFolders);
-router.get('/folders/segments/:parentFolder/:folderId', folderInterface.getFolderPathSegments)
+router.get('/folders/segments/:folderId', folderInterface.getFolderPathSegments)
 
 router.post('/folders', folderInterface.validateFolder, folderInterface.createFolder);
 router.delete('/folders', folderInterface.deleteFolder);

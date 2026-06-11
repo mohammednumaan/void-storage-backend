@@ -26,10 +26,10 @@ const constructFolderPath = async (folder, parent, needsRoot) => {
             where: {id: currentFolder.parentFolder}
         })
 
-        if (!needsRoot){
-            if (currentFolder.parentFolder.folderName === "root"){
-                break;
-            }
+        if (!parentFolder) break;
+
+        if (!needsRoot && parentFolder.folderName === "root"){
+            break;
         }
         
         folderPath.unshift({name: parentFolder.folderName, id: parentFolder.id})

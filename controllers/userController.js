@@ -93,7 +93,11 @@ exports.login_post = [
 exports.logout_post = (req, res, next) => {
     req.logout((err) => {
         if (err) return res.fail('Failed to logout', 500);
-        return res.success(null, 'Logged out successfully');
+        req.session.destroy((err) => {
+            if (err) return res.fail('Failed to destroy session', 500);
+            res.clearCookie('connect.sid');
+            return res.success(null, 'Logged out successfully');
+        });
     });
 }
 

@@ -31,9 +31,7 @@ const limiter = RateLimit({
 
 const allowedOrigins = [
   process.env.FRONTEND_URL,
-  process.env.CLIENT_URL,
   'http://localhost:5173',
-  'https://void-storage-frontend.vercel.app',
 ].filter(Boolean);
 
 app.use(limiter);
@@ -68,8 +66,8 @@ app.use(
     cookie: {
       httpOnly: true,
       maxAge: 2 * 24 * 60 * 60 * 1000,
-      sameSite: 'none',
-      secure: true,
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      secure: process.env.NODE_ENV === 'production',
     },  
     secret: process.env.SESSION_SECRET,
     resave: false,
