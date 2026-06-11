@@ -23,22 +23,30 @@ express.js api server for [void storage](https://voidstoragefe.vercel.app/), a m
 
 1. install dependencies
 
+   ```bash
    npm install
+   ```
 
 2. create a `.env` file in the root directory
 
+   ```
    DATABASE_URL=          # postgresql connection string
    SESSION_SECRET=        # session signing secret
    CLOUDINARY_CLOUD_NAME=
    CLOUDINARY_API_KEY=
    CLOUDINARY_API_SECRET=
    FRONTEND_URL=          # e.g. http://localhost:5173
+   ```
 
 3. run prisma migrations
 
+   ```bash
    npx prisma migrate dev
+   ```
 
 4. start the server
 
-   npm run dev            # development with nodemon (port 3000)
-   npm start              # production
+   ```bash
+   npm run dev    # development with nodemon (port 3000)
+   npm start      # production
+   ```
